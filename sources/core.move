@@ -28,13 +28,13 @@ module overmind::breeder_core {
     use aptos_token_objects::property_map::{Self, PropertyMap};
     use overmind::breeder_events::{
         Self,
-        CreateMonsterCollectionEvent,
-        CreateMonsterEvent,
-        BreedMonsterEvent,
-        HatchMonsterEvent,
-        CreateEquipmentCollectionEvent,
-        CreateEquipmentEvent,
-        CombineEquipmentEvent
+        CreateDragonCollectionEvent,
+        CreateDragonEvent,
+        BreedDragonsEvent,
+        HatchDragonEvent,
+        CreateSwordCollectionEvent,
+        CreateSwordEvent,
+        CombineSwordsEvent
     };
     #[test_only]
     use aptos_token_objects::royalty;
@@ -53,14 +53,14 @@ module overmind::breeder_core {
     const ERROR_STATE_NOT_INITIALIZED: u64 = 1;
     const ERROR_INVALID_BREEDING_TIME: u64 = 2;
     const ERROR_INVALID_COMBINE_AMOUNT: u64 = 3;
-    const ERROR_INVALID_EQUIPMENT_PROPERTY_VALUES_SUM: u64 = 4;
+    const ERROR_INVALID_SWORDS_PROPERTY_VALUES_SUM: u64 = 4;
     const ERROR_COLLECTION_ALREADY_EXISTS: u64 = 5;
     const ERROR_COLLECTION_DOES_NOT_EXIST: u64 = 6;
     const ERROR_SIGNER_IS_NOT_THE_OWNER: u64 = 7;
-    const ERROR_MONSTER_DURING_BREEDING: u64 = 8;
-    const ERROR_MONSTERS_NOT_BREEDING: u64 = 9;
+    const ERROR_DRAGON_DURING_BREEDING: u64 = 8;
+    const ERROR_DRAGONS_NOT_BREEDING: u64 = 9;
     const ERROR_BREEDING_HAS_NOT_ENDED: u64 = 10;
-    const ERROR_INCORRECT_AMOUNT_OF_EQUIPMENT: u64 = 11;
+    const ERROR_INCORRECT_AMOUNT_OF_SWORDS: u64 = 11;
     const ERROR_PROPERTY_LENGTH_MISMATCH: u64 = 12;
     const ERROR_TOKEN_FROM_WRONG_COLLECTION: u64 = 13;
 
@@ -74,8 +74,8 @@ module overmind::breeder_core {
     // COLLECTIONS SETTINGS //
     //////////////////////////
 
-    const MONSTER_MAX_SUPPLY: u64 = 10000;
-    const EQUIPMENT_MAX_SUPPLY: u64 = 1000;
+    const DRAGON_COLLECTION_MAX_SUPPLY: u64 = 10000;
+    const SWORD_COLLECTION_MAX_SUPPLY: u64 = 1000;
     const ROYALTY_NUMERATOR: u64 = 1;
     const ROYALTY_DENOMINATOR: u64 = 10;
 
@@ -90,26 +90,26 @@ module overmind::breeder_core {
     // MONSTER PROPERTIES //
     ////////////////////////
 
-    const MONSTER_PROPERTY_KEYS: vector<vector<u8>> = vector[b"Health", b"Defence", b"Strength", b"Ability"];
-    const MONSTER_PROPERTY_TYPES: vector<vector<u8>> = vector[b"u64", b"u64", b"u64", b"0x1::string::String"];
-    const MONSTER_MINIMAL_START_PROPERTY_VALUES: vector<u64> = vector[10, 0, 1];
-    const MONSTER_MAXIMAL_START_PROPERTY_VALUES: vector<u64> = vector[100, 10, 20];
+    const DRAGON_PROPERTY_KEYS: vector<vector<u8>> = vector[b"Health", b"Defence", b"Strength", b"Ability"];
+    const DRAGON_PROPERTY_TYPES: vector<vector<u8>> = vector[b"u64", b"u64", b"u64", b"0x1::string::String"];
+    const DRAGON_MINIMAL_START_PROPERTY_VALUES: vector<u64> = vector[10, 0, 1];
+    const DRAGON_MAXIMAL_START_PROPERTY_VALUES: vector<u64> = vector[100, 10, 20];
 
     /////////////////////////////
     // COMBINE AMOUNT SETTINGS //
     /////////////////////////////
 
-    const MINIMAL_AMOUNT_OF_PIECES_TO_COMBINE: u64 = 2;
-    const MAXIMAL_AMOUNT_OF_PIECES_TO_COMBINE: u64 = 10;
+    const MINIMAL_AMOUNT_TO_COMBINE: u64 = 2;
+    const MAXIMAL_AMOUNT_TO_COMBINE: u64 = 10;
 
     //////////////////////////
     // EQUIPMENT PROPERTIES //
     //////////////////////////
 
-    const EQUIPMENT_PROPERTY_KEYS: vector<vector<u8>> = vector[b"Attack", b"Defence", b"Durability", b"Ability"];
-    const EQUIPMENT_PROPERTY_TYPES: vector<vector<u8>> = vector[b"u64", b"u64", b"u64", b"0x1::string::String"];
-    const EQUIPMENT_MINIMAL_START_PROPERTY_VALUES_SUM: u64 = 10;
-    const EQUIPMENT_MAXIMAL_START_PROPERTY_VALUES_SUM: u64 = 100;
+    const SWORD_PROPERTY_KEYS: vector<vector<u8>> = vector[b"Attack", b"Durability", b"Ability"];
+    const SWORD_PROPERTY_TYPES: vector<vector<u8>> = vector[b"u64", b"u64", b"0x1::string::String"];
+    const SWORD_MINIMAL_START_PROPERTY_VALUES_SUM: u64 = 10;
+    const SWORD_MAXIMAL_START_PROPERTY_VALUES_SUM: u64 = 100;
 
     /*
         Resource kept under admin address. Stores data about available collections.
@@ -124,27 +124,27 @@ module overmind::breeder_core {
     }
 
     /*
-        Holds data about monster colections and ongoing breedings.
+        Holds data about dragon colections and ongoing breedings.
     */
     struct Breeder has store {
-        // Available monster collections and their corresponding names
-        collections: SimpleMap<String, MonsterRace>,
+        // Available dragon collections and their corresponding names
+        collections: SimpleMap<String, DragonRace>,
         // List of ongoing breedings and timestamps of when they going to finish
         ongoing_breedings: SimpleMap<vector<u8>, u64>,
         // Events
-        create_monster_collection_events: EventHandle<CreateMonsterCollectionEvent>,
-        create_monster_events: EventHandle<CreateMonsterEvent>,
-        breed_monster_events: EventHandle<BreedMonsterEvent>,
-        hatch_monster_events: EventHandle<HatchMonsterEvent>
+        create_dragon_collection_events: EventHandle<CreateDragonCollectionEvent>,
+        create_dragon_events: EventHandle<CreateDragonEvent>,
+        breed_dragons_events: EventHandle<BreedDragonsEvent>,
+        hatch_dragon_events: EventHandle<HatchDragonEvent>
     }
 
     /*
         Holds data about a single monster collection
     */
-    struct MonsterRace has store, copy, drop {
-        // Amount of time required for two monsters to hatch a new one
+    struct DragonRace has store, copy, drop {
+        // Amount of time required for two dragons to hatch a new one
         breeding_time: u64,
-        // Starting properties of a monster created via create_monster function
+        // Starting properties of a dragon created via create_dragon function
         starting_properties: vector<vector<u8>>,
     }
 
@@ -152,21 +152,21 @@ module overmind::breeder_core {
         Holds data about equipment collections
     */
     struct Combiner has store {
-        // Available equipment collections with their corresponding names
-        collections: SimpleMap<String, Equipment>,
+        // Available sword collections with their corresponding names
+        collections: SimpleMap<String, SwordType>,
         // Events
-        create_equipment_collection_events: EventHandle<CreateEquipmentCollectionEvent>,
-        create_equipment_events: EventHandle<CreateEquipmentEvent>,
-        combine_equipment_events: EventHandle<CombineEquipmentEvent>
+        create_sword_collection_events: EventHandle<CreateSwordCollectionEvent>,
+        create_sword_events: EventHandle<CreateSwordEvent>,
+        combine_swords_events: EventHandle<CombineSwordsEvent>
     }
 
     /*
-        Holds data about a single equipment collection
+        Holds data about a single sword collection
     */
-    struct Equipment has store, copy, drop {
-        // Amount of equipment tokens required to combine them into one
+    struct SwordType has store, copy, drop {
+        // Amount of sword tokens required to combine them into one
         combine_amount: u64,
-        // Starting properties of equipment created via create_equipment function
+        // Starting properties of sword created via create_sword function
         starting_properties: vector<vector<u8>>
     }
 
@@ -183,7 +183,7 @@ module overmind::breeder_core {
     }
 
     /*
-        Creates a new monster collection and adds it to Breeder's collections.
+        Creates a new dragpm collection and adds it to Breeder's collections.
         @param account - an account signing the transaction
         @param name - name of the new collection
         @param description - description of the new collection
@@ -191,7 +191,7 @@ module overmind::breeder_core {
         @param breeding_time - amount of time NFTs will be frozen for while breeding
         @param ability_property - special ability of every NFT in the collection
     */
-    public entry fun create_monster_collection(
+    public entry fun create_dragon_collection(
         _account: &signer,
         name: String,
         description: String,
@@ -217,7 +217,7 @@ module overmind::breeder_core {
     }
 
     /*
-        Creates a new equipment collection and adds it to Combiner's collections.
+        Creates a new sword collection and adds it to Combiner's collections.
         @param account - signer of the transaction
         @param name - name of the new collection
         @param description - description of the new collection
@@ -225,7 +225,7 @@ module overmind::breeder_core {
         @param combine_amount - amount of NFT from this collection required to combined them into one
         @param ability_property - special ability of NFTs from this collection
     */
-    public entry fun create_equipment_collection(
+    public entry fun create_sword_collection(
         _account: &signer,
         name: String,
         description: String,
@@ -252,19 +252,19 @@ module overmind::breeder_core {
     }
 
     /*
-        Creates a new monster NFT from provided collection.
+        Creates a new dragon NFT from provided collection.
         @param account - account, which the newly created token is transfered to
         @param collection_name - name of the collection
-        @param monster_name - name of the created monster token
-        @param monster_description - description of the created monster token
-        @param monster_uri - image's UTI of the created monster token
+        @param dragon_name - name of the created dragon token
+        @param dragon_description - description of the created dragon token
+        @param dragon_uri - image's UTI of the created dragon token
     */
-    public entry fun create_monster(
+    public entry fun create_dragon(
         account: &signer,
         collection_name: String,
-        monster_name: String,
-        monster_description: String,
-        monster_uri: String
+        dragon_name: String,
+        dragon_description: String,
+        dragon_uri: String
     ) acquires State {
         // TODO: Assert that state is initialized
 
@@ -280,20 +280,20 @@ module overmind::breeder_core {
     }
 
     /*
-        Creates a new equipment token from provided collection
+        Creates a new sword token from provided collection
         @param account - account, which the newly created token is transfered to
         @param collection_name - name of the collection
-        @param equipment_name - name of the created equipment token
-        @param equipment_description - description of the created equipment token
-        @param equipment_uri - image's UTI of the created equipment token
+        @param sword_name - name of the created sword token
+        @param sword_description - description of the created sword token
+        @param sword_uri - image's UTI of the created sword token
         @param amount - amount of tokens to be created
     */
-    public entry fun create_equipment(
+    public entry fun create_sword(
         account: &signer,
         collection_name: String,
-        equipment_name: String,
-        equipment_description: String,
-        equipment_uri: String,
+        sword_name: String,
+        sword_description: String,
+        sword_uri: String,
         amount: u64
     ) acquires State {
         // TODO: Assert that state is initialized
@@ -309,17 +309,17 @@ module overmind::breeder_core {
     }
 
     /*
-        Freezes both provided monster tokens and adds a record to Breeder's ongoing_breedings
+        Freezes both provided dragon tokens and adds a record to Breeder's ongoing_breedings
         @param owner - owner of the provided monster tokens
         @param collection_name - name of the collection, which the tokens are from
-        @param first_monster_creation_number - creation number of the first monster token
-        @param second_monster_creation_number - creation number of the second monster token
+        @param first_dragon_creation_number - creation number of the first dragon token
+        @param second_dragon_creation_number - creation number of the second dragon token
     */
-    public entry fun breed_monsters(
+    public entry fun breed_dragons(
         owner: &signer,
         collection_name: String,
-        first_monster_creation_number: u64,
-        second_monster_creation_number: u64
+        first_dragon_creation_number: u64,
+        second_dragon_creation_number: u64
     ) acquires State {
         // TODO: Assert that state is initialized
 
@@ -347,21 +347,21 @@ module overmind::breeder_core {
     }
 
     /*
-        Unfreezes provided monster tokens, creates new one with combined properties and transfers it to the owner.
-        @param owner - owner of the two breeding monster tokens
-        @param first_monster_creation_number - creation number of the first monster token
-        @param second_monster_creation_number - creation number of the second monster token
-        @param new_monster_name - name of the new monster token
-        @param new_monster_description - description of the new monster token
-        @param new_monster_uri - image's URI of the new monster token
+        Unfreezes provided dragon tokens, creates new one with combined properties and transfers it to the owner.
+        @param owner - owner of the two breeding dragon tokens
+        @param first_dragon_creation_number - creation number of the first dragon token
+        @param second_dragon_creation_number - creation number of the second dragon token
+        @param new_dragon_name - name of the new dragon token
+        @param new_dragon_description - description of the new dragon token
+        @param new_dragon_uri - image's URI of the new dragon token
     */
-    public entry fun hatch_monster(
+    public entry fun hatch_dragon(
         owner: &signer,
-        first_monster_creation_number: u64,
-        second_monster_creation_number: u64,
-        new_moster_name: String,
-        new_monster_description: String,
-        new_monster_uri: String
+        first_dragon_creation_number: u64,
+        second_dragon_creation_number: u64,
+        new_dragon_name: String,
+        new_dragon_description: String,
+        new_dragon_uri: String
     ) acquires State {
         // TODO: Assert that state is initialized
 
@@ -389,21 +389,21 @@ module overmind::breeder_core {
     }
 
     /*
-        Burns provided equipment tokens, creates new one with combined properties and transfers it to the owner
-        @param owner - owner of the provided equipment tokens
+        Burns provided sword tokens, creates new one with combined properties and transfers it to the owner
+        @param owner - owner of the provided sword tokens
         @param collection_name - name of the collection, which the tokens are from
-        @param equipment_creation_numbers - list of equipment tokens to be burned
-        @param new_equipment_name - name of the new equipment token
-        @param new_equipment_description - description of the new equipment token
-        @param new_equipment_uri - image's URI of the new equipment token
+        @param swords_creation_numbers - list of sword tokens to be burned
+        @param new_sword_name - name of the new sword token
+        @param new_sword_description - description of the new sword token
+        @param new_sword_uri - image's URI of the new sword token
     */
-    public entry fun combine_equipment(
+    public entry fun combine_swords(
         owner: &signer,
         collection_name: String,
-        equipment_creation_numbers: vector<u64>,
-        new_equipment_name: String,
-        new_equipment_description: String,
-        new_equipment_uri: String
+        swords_creation_numbers: vector<u64>,
+        new_sword_name: String,
+        new_sword_description: String,
+        new_sword_uri: String
     ) acquires State {
         // TODO: Assert that state is initialized
 
@@ -431,7 +431,7 @@ module overmind::breeder_core {
 
     /*
         Returns sum of starting properties for provieded combine amount
-        @param combine_amount - amount of equipment tokens that would be combined
+        @param combine_amount - amount of sword tokens that would be combined
         @returns - sum of the starting properties
     */
     #[view]
@@ -473,11 +473,11 @@ module overmind::breeder_core {
     }
 
     /*
-        Calculates starting properties of monsters basing on provided breeding time
+        Calculates starting properties of dragons basing on provided breeding time
         @param breeding_time - time required for monsters to hatch a new one
         @returns - list of starting properties
     */
-    inline fun calculate_monster_starting_properties(breeding_time: u64): vector<u64> {
+    inline fun calculate_dragons_starting_properties(breeding_time: u64): vector<u64> {
         // TODO: Calculate monster starting properties accordingly to the formula:
         //        (b_t - MIN_B_T)^3
         //      --------------------- * P_Diff + P_Min
@@ -491,11 +491,11 @@ module overmind::breeder_core {
     }
 
     /*
-        Calculates sum of starting properties of equipment basing on provided combine amount
+        Calculates sum of starting properties of swords basing on provided combine amount
         @param combine_amount - amount of equipment tokens required to combine them into one
         @returns - sum of starting properties
     */
-    inline fun calculate_equipment_starting_properties_sum(combine_amount: u64): u64 {
+    inline fun calculate_swords_starting_properties_sum(combine_amount: u64): u64 {
         // TODO: Calculate sum of equipment starting properties accordingly to the formula:
         //          (c_a - MIN_AMOUNT)^2
         //      --------------------------- * P_Diff + P_MIN
@@ -549,16 +549,12 @@ module overmind::breeder_core {
     }
 
     inline fun assert_combine_amount_is_correct(combine_amount: u64) {
-        // TODO: Assert that combine_amount is greater or equals to MINIMAL_AMOUNT_OF_PIECES_TO_COMBINE and is smaller
-        //      or equals to MAXIMAL_AMOUNT_OF_PIECES_TO_COMBINE
-        assert!(
-            MINIMAL_AMOUNT_OF_PIECES_TO_COMBINE <= combine_amount &&
-                combine_amount <= MAXIMAL_AMOUNT_OF_PIECES_TO_COMBINE,
-            ERROR_INVALID_COMBINE_AMOUNT
-        );
+        // TODO: Assert that combine_amount is greater or equals to MINIMAL_TO_COMBINE and is smaller
+        //      or equals to MAXIMAL_AMOUNT_TO_COMBINE
+
     }
 
-    inline fun assert_equipment_property_values_sum_is_correct(property_values: &vector<u64>, expected_sum: u64) {
+    inline fun assert_sword_property_values_sum_is_correct(property_values: &vector<u64>, expected_sum: u64) {
         // TODO: Assert that sum of property_values' values is smaller or equals expected_sum
     }
 
@@ -574,25 +570,25 @@ module overmind::breeder_core {
         // TODO: Assert that address of the owner is the same as the owner of the object
     }
 
-    inline fun assert_monster_not_breeding(monster: Object<Token>) {
+    inline fun assert_dragon_not_breeding(monster: Object<Token>) {
         // TODO: Assert that transfer of the object is allowed
     }
 
-    inline fun assert_monsters_are_breeding(
+    inline fun assert_dragons_are_breeding(
         ongoing_breedings: &SimpleMap<vector<u8>, u64>,
-        monster_pair_hash: &vector<u8>
+        dragons_pair_hash: &vector<u8>
     ) {
         // TODO: Assert that the map contains the provided key
     }
 
     inline fun assert_breeding_finished(
         ongoing_breedings: &SimpleMap<vector<u8>, u64>,
-        monster_pair_hash: &vector<u8>
+        dragons_pair_hash: &vector<u8>
     ) {
         // TODO: Assert that timestamp related to the provided monster_pair_hash is smaller or equals current timestamp
     }
 
-    inline fun assert_amount_of_equipment_is_correct(equipment: &vector<u64>, combine_amount: u64) {
+    inline fun assert_amount_of_swords_is_correct(swords: &vector<u64>, combine_amount: u64) {
         // TODO: Assert that the vector's length equals to combine_amount
     }
 
@@ -663,34 +659,34 @@ module overmind::breeder_core {
     }
 
     #[test]
-    fun test_calculate_monster_starting_properties() {
+    fun test_calculate_dragons_starting_properties() {
         let breeding_time = MINIMAL_BREEDING_TIME;
-        let starting_properties = calculate_monster_starting_properties(breeding_time);
-        assert!(starting_properties == MONSTER_MINIMAL_START_PROPERTY_VALUES, 0);
+        let starting_properties = calculate_dragons_starting_properties(breeding_time);
+        assert!(starting_properties == DRAGON_MINIMAL_START_PROPERTY_VALUES, 0);
 
         let breeding_time = MAXIMAL_BREEDING_TIME;
-        let starting_properties = calculate_monster_starting_properties(breeding_time);
-        assert!(starting_properties == MONSTER_MAXIMAL_START_PROPERTY_VALUES, 1);
+        let starting_properties = calculate_dragons_starting_properties(breeding_time);
+        assert!(starting_properties == DRAGON_MAXIMAL_START_PROPERTY_VALUES, 1);
 
         let breeding_time = 60 * 60 * 24 * 16;
-        let starting_properties = calculate_monster_starting_properties(breeding_time);
+        let starting_properties = calculate_dragons_starting_properties(breeding_time);
         assert!(*vector::borrow(&starting_properties, 0) == 21, 2);
         assert!(*vector::borrow(&starting_properties, 1) == 1, 3);
         assert!(*vector::borrow(&starting_properties, 2) == 3, 4);
     }
 
     #[test]
-    fun test_calculate_equipment_starting_properties_sum() {
+    fun test_calculate_swords_starting_properties_sum() {
         let combine_amount = 2;
-        let starting_properties_sum = calculate_equipment_starting_properties_sum(combine_amount);
-        assert!(starting_properties_sum == EQUIPMENT_MINIMAL_START_PROPERTY_VALUES_SUM, 0);
+        let starting_properties_sum = calculate_swords_starting_properties_sum(combine_amount);
+        assert!(starting_properties_sum == SWORD_MINIMAL_START_PROPERTY_VALUES_SUM, 0);
 
         let combine_amount = 10;
-        let starting_properties_sum = calculate_equipment_starting_properties_sum(combine_amount);
-        assert!(starting_properties_sum == EQUIPMENT_MAXIMAL_START_PROPERTY_VALUES_SUM, 1);
+        let starting_properties_sum = calculate_swords_starting_properties_sum(combine_amount);
+        assert!(starting_properties_sum == SWORD_MAXIMAL_START_PROPERTY_VALUES_SUM, 1);
 
         let combine_amount = 6;
-        let starting_properties_sum = calculate_equipment_starting_properties_sum(combine_amount);
+        let starting_properties_sum = calculate_swords_starting_properties_sum(combine_amount);
         assert!(starting_properties_sum == 32, 2);
     }
 
@@ -777,13 +773,13 @@ module overmind::breeder_core {
         assert!(simple_map::length(&state.breeder.collections) == 0, 0);
         assert!(simple_map::length(&state.breeder.ongoing_breedings) == 0, 1);
         assert!(simple_map::length(&state.combiner.collections) == 0, 2);
-        assert!(event::counter(&state.breeder.create_monster_collection_events) == 0, 3);
-        assert!(event::counter(&state.breeder.create_monster_events) == 0, 4);
-        assert!(event::counter(&state.breeder.breed_monster_events) == 0, 5);
-        assert!(event::counter(&state.breeder.hatch_monster_events) == 0, 6);
-        assert!(event::counter(&state.combiner.create_equipment_collection_events) == 0, 7);
-        assert!(event::counter(&state.combiner.create_equipment_events) == 0, 8);
-        assert!(event::counter(&state.combiner.combine_equipment_events) == 0, 9);
+        assert!(event::counter(&state.breeder.create_dragon_collection_events) == 0, 3);
+        assert!(event::counter(&state.breeder.create_dragon_events) == 0, 4);
+        assert!(event::counter(&state.breeder.breed_dragons_events) == 0, 5);
+        assert!(event::counter(&state.breeder.hatch_dragon_events) == 0, 6);
+        assert!(event::counter(&state.combiner.create_sword_collection_events) == 0, 7);
+        assert!(event::counter(&state.combiner.create_sword_events) == 0, 8);
+        assert!(event::counter(&state.combiner.combine_swords_events) == 0, 9);
 
         let resource_account_address = account::create_resource_address(&@admin, BREEDER_SEED);
         assert!(&state.cap == &account::create_test_signer_cap(resource_account_address), 10);
@@ -805,7 +801,7 @@ module overmind::breeder_core {
     }
 
     #[test]
-    fun test_create_monster_collection() acquires State {
+    fun test_create_dragon_collection() acquires State {
         let aptos_framework = account::create_account_for_test(@aptos_framework);
         timestamp::set_time_has_started_for_testing(&aptos_framework);
 
@@ -813,29 +809,29 @@ module overmind::breeder_core {
         init(&admin);
 
         let account = account::create_account_for_test(@0xCAFE);
-        let name = string::utf8(b"Monster collection");
-        let description = string::utf8(b"This is a monster collection");
+        let name = string::utf8(b"Dragon collection");
+        let description = string::utf8(b"This is a dragon collection");
         let uri =
-            string::utf8(b"https://upload.wikimedia.org/wikipedia/commons/2/24/Monster_Energy_sold_in_China.jpg");
+            string::utf8(b"https://static.wikia.nocookie.net/dank_memer/images/c/c7/Dragon.png/revision/latest/thumbnail/width/360/height/360?cb=20221128103212");
         let breeding_time = 60 * 60 * 24 * 21 + 60 * 60 * 11;
         let ability_property = string::utf8(b"YEET");
-        create_monster_collection(&account, name, description, uri, breeding_time, ability_property);
+        create_dragon_collection(&account, name, description, uri, breeding_time, ability_property);
 
         let state = borrow_global<State>(@admin);
         assert!(simple_map::length(&state.breeder.collections) == 1, 0);
         assert!(simple_map::contains_key(&state.breeder.collections, &name), 1);
         assert!(simple_map::length(&state.breeder.ongoing_breedings) == 0, 2);
-        assert!(event::counter(&state.breeder.create_monster_collection_events) == 1, 3);
-        assert!(event::counter(&state.breeder.create_monster_events) == 0, 4);
-        assert!(event::counter(&state.breeder.breed_monster_events) == 0, 5);
-        assert!(event::counter(&state.breeder.hatch_monster_events) == 0, 6);
+        assert!(event::counter(&state.breeder.create_dragon_collection_events) == 1, 3);
+        assert!(event::counter(&state.breeder.create_dragon_events) == 0, 4);
+        assert!(event::counter(&state.breeder.breed_dragons_events) == 0, 5);
+        assert!(event::counter(&state.breeder.hatch_dragon_events) == 0, 6);
         assert!(simple_map::length(&state.combiner.collections) == 0, 7);
-        assert!(event::counter(&state.combiner.create_equipment_collection_events) == 0, 8);
-        assert!(event::counter(&state.combiner.create_equipment_events) == 0, 9);
-        assert!(event::counter(&state.combiner.combine_equipment_events) == 0, 10);
+        assert!(event::counter(&state.combiner.create_sword_collection_events) == 0, 8);
+        assert!(event::counter(&state.combiner.create_sword_events) == 0, 9);
+        assert!(event::counter(&state.combiner.combine_swords_events) == 0, 10);
 
-        let monster_race = simple_map::borrow(&state.breeder.collections, &name);
-        assert!(monster_race.breeding_time == breeding_time, 11);
+        let dragon_race = simple_map::borrow(&state.breeder.collections, &name);
+        assert!(dragon_race.breeding_time == breeding_time, 11);
 
         let expected_starting_properties = vector[
             bcs::to_bytes(&40),
@@ -843,25 +839,25 @@ module overmind::breeder_core {
             bcs::to_bytes(&7),
             bcs::to_bytes(&ability_property)
         ];
-        assert!(monster_race.starting_properties == expected_starting_properties, 12);
+        assert!(dragon_race.starting_properties == expected_starting_properties, 12);
     }
 
     #[test]
     #[expected_failure(abort_code = 1, location = Self)]
-    fun test_create_monster_collection_state_not_initialized() acquires State {
+    fun test_create_dragon_collection_state_not_initialized() acquires State {
         let account = account::create_account_for_test(@0xCAFE);
-        let name = string::utf8(b"Monster collection");
-        let description = string::utf8(b"This is a monster collection");
+        let name = string::utf8(b"Dragon collection");
+        let description = string::utf8(b"This is a dragon collection");
         let uri =
-            string::utf8(b"https://upload.wikimedia.org/wikipedia/commons/2/24/Monster_Energy_sold_in_China.jpg");
+            string::utf8(b"https://static.wikia.nocookie.net/dank_memer/images/c/c7/Dragon.png/revision/latest/thumbnail/width/360/height/360?cb=20221128103212");
         let breeding_time = 60 * 60 * 24 * 21 + 60 * 60 * 11;
         let ability_property = string::utf8(b"YEET");
-        create_monster_collection(&account, name, description, uri, breeding_time, ability_property);
+        create_dragon_collection(&account, name, description, uri, breeding_time, ability_property);
     }
 
     #[test]
     #[expected_failure(abort_code = 2, location = Self)]
-    fun test_create_monster_collection_incorrect_breeding_time_too_small() acquires State {
+    fun test_create_dragon_collection_incorrect_breeding_time_too_small() acquires State {
         let aptos_framework = account::create_account_for_test(@aptos_framework);
         timestamp::set_time_has_started_for_testing(&aptos_framework);
 
@@ -869,18 +865,18 @@ module overmind::breeder_core {
         init(&admin);
 
         let account = account::create_account_for_test(@0xCAFE);
-        let name = string::utf8(b"Monster collection");
-        let description = string::utf8(b"This is a monster collection");
+        let name = string::utf8(b"Dragon collection");
+        let description = string::utf8(b"This is a dragon collection");
         let uri =
-            string::utf8(b"https://upload.wikimedia.org/wikipedia/commons/2/24/Monster_Energy_sold_in_China.jpg");
+            string::utf8(b"https://static.wikia.nocookie.net/dank_memer/images/c/c7/Dragon.png/revision/latest/thumbnail/width/360/height/360?cb=20221128103212");
         let breeding_time = 11;
         let ability_property = string::utf8(b"YEET");
-        create_monster_collection(&account, name, description, uri, breeding_time, ability_property);
+        create_dragon_collection(&account, name, description, uri, breeding_time, ability_property);
     }
 
     #[test]
     #[expected_failure(abort_code = 2, location = Self)]
-    fun test_create_monster_collection_incorrect_breeding_time_too_big() acquires State {
+    fun test_create_dragon_collection_incorrect_breeding_time_too_big() acquires State {
         let aptos_framework = account::create_account_for_test(@aptos_framework);
         timestamp::set_time_has_started_for_testing(&aptos_framework);
 
@@ -888,18 +884,18 @@ module overmind::breeder_core {
         init(&admin);
 
         let account = account::create_account_for_test(@0xCAFE);
-        let name = string::utf8(b"Monster collection");
-        let description = string::utf8(b"This is a monster collection");
+        let name = string::utf8(b"Dragon collection");
+        let description = string::utf8(b"This is a dragon collection");
         let uri =
-            string::utf8(b"https://upload.wikimedia.org/wikipedia/commons/2/24/Monster_Energy_sold_in_China.jpg");
+            string::utf8(b"https://static.wikia.nocookie.net/dank_memer/images/c/c7/Dragon.png/revision/latest/thumbnail/width/360/height/360?cb=20221128103212");
         let breeding_time = 5646851151;
         let ability_property = string::utf8(b"YEET");
-        create_monster_collection(&account, name, description, uri, breeding_time, ability_property);
+        create_dragon_collection(&account, name, description, uri, breeding_time, ability_property);
     }
 
     #[test]
     #[expected_failure(abort_code = 5, location = Self)]
-    fun test_create_monster_collection_already_exists() acquires State {
+    fun test_create_dragon_collection_already_exists() acquires State {
         let aptos_framework = account::create_account_for_test(@aptos_framework);
         timestamp::set_time_has_started_for_testing(&aptos_framework);
 
@@ -907,18 +903,18 @@ module overmind::breeder_core {
         init(&admin);
 
         let account = account::create_account_for_test(@0xCAFE);
-        let name = string::utf8(b"Monster collection");
-        let description = string::utf8(b"This is a monster collection");
+        let name = string::utf8(b"Dragon collection");
+        let description = string::utf8(b"This is a dragon collection");
         let uri =
-            string::utf8(b"https://upload.wikimedia.org/wikipedia/commons/2/24/Monster_Energy_sold_in_China.jpg");
+            string::utf8(b"https://static.wikia.nocookie.net/dank_memer/images/c/c7/Dragon.png/revision/latest/thumbnail/width/360/height/360?cb=20221128103212");
         let breeding_time = 60 * 60 * 24 * 13;
         let ability_property = string::utf8(b"YEET");
-        create_monster_collection(&account, name, description, uri, breeding_time, ability_property);
-        create_monster_collection(&account, name, description, uri, breeding_time, ability_property);
+        create_dragon_collection(&account, name, description, uri, breeding_time, ability_property);
+        create_dragon_collection(&account, name, description, uri, breeding_time, ability_property);
     }
 
     #[test]
-    fun test_create_equipment_collection() acquires State {
+    fun test_create_sword_collection() acquires State {
         let aptos_framework = account::create_account_for_test(@aptos_framework);
         timestamp::set_time_has_started_for_testing(&aptos_framework);
 
@@ -926,14 +922,14 @@ module overmind::breeder_core {
         init(&admin);
 
         let account = account::create_account_for_test(@0xCAFE);
-        let name = string::utf8(b"Equipment collection");
-        let description = string::utf8(b"This is a equipment collection");
+        let name = string::utf8(b"Sword collection");
+        let description = string::utf8(b"This is a sword collection");
         let uri =
-            string::utf8(b"https://i.pinimg.com/originals/07/6b/b1/076bb1fbef7d70f0a1a961ab8c136a22.jpg");
+            string::utf8(b"https://static.wikia.nocookie.net/dank_memer/images/c/c7/Dragon.png/revision/latest/thumbnail/width/360/height/360?cb=20221128103212");
         let combine_amount = 4;
-        let property_values = vector[10, 0, 5];
+        let property_values = vector[10, 5];
         let ability_property = string::utf8(b"Fire imbued");
-        create_equipment_collection(
+        create_sword_collection(
             &account,
             name,
             description,
@@ -946,38 +942,38 @@ module overmind::breeder_core {
         let state = borrow_global<State>(@admin);
         assert!(simple_map::length(&state.breeder.collections) == 0, 0);
         assert!(simple_map::length(&state.breeder.ongoing_breedings) == 0, 1);
-        assert!(event::counter(&state.breeder.create_monster_collection_events) == 0, 2);
-        assert!(event::counter(&state.breeder.create_monster_events) == 0, 3);
-        assert!(event::counter(&state.breeder.breed_monster_events) == 0, 4);
-        assert!(event::counter(&state.breeder.hatch_monster_events) == 0, 5);
+        assert!(event::counter(&state.breeder.create_dragon_collection_events) == 0, 2);
+        assert!(event::counter(&state.breeder.create_dragon_events) == 0, 3);
+        assert!(event::counter(&state.breeder.breed_dragons_events) == 0, 4);
+        assert!(event::counter(&state.breeder.hatch_dragon_events) == 0, 5);
         assert!(simple_map::length(&state.combiner.collections) == 1, 6);
         assert!(simple_map::contains_key(&state.combiner.collections, &name), 7);
-        assert!(event::counter(&state.combiner.create_equipment_collection_events) == 1, 8);
-        assert!(event::counter(&state.combiner.create_equipment_events) == 0, 9);
-        assert!(event::counter(&state.combiner.combine_equipment_events) == 0, 10);
+        assert!(event::counter(&state.combiner.create_sword_collection_events) == 1, 8);
+        assert!(event::counter(&state.combiner.create_sword_events) == 0, 9);
+        assert!(event::counter(&state.combiner.combine_swords_events) == 0, 10);
 
-        let equipment = simple_map::borrow(&state.combiner.collections, &name);
-        assert!(equipment.combine_amount == combine_amount, 11);
+        let sword_type = simple_map::borrow(&state.combiner.collections, &name);
+        assert!(sword_type.combine_amount == combine_amount, 11);
 
         let expected_starting_properties = vector::map_ref(&property_values, |value| {
             bcs::to_bytes(value)
         });
         vector::push_back(&mut expected_starting_properties, bcs::to_bytes(&ability_property));
-        assert!(equipment.starting_properties == expected_starting_properties, 12);
+        assert!(sword_type.starting_properties == expected_starting_properties, 12);
     }
 
     #[test]
     #[expected_failure(abort_code = 3, location = Self)]
-    fun test_create_equipment_collection_incorrect_combine_amount_too_small() acquires State {
+    fun test_create_sword_collection_incorrect_combine_amount_too_small() acquires State {
         let account = account::create_account_for_test(@0xCAFE);
-        let name = string::utf8(b"Equipment collection");
-        let description = string::utf8(b"This is a equipment collection");
+        let name = string::utf8(b"Sword collection");
+        let description = string::utf8(b"This is a sword collection");
         let uri =
-            string::utf8(b"https://i.pinimg.com/originals/07/6b/b1/076bb1fbef7d70f0a1a961ab8c136a22.jpg");
+            string::utf8(b"https://static.wikia.nocookie.net/dank_memer/images/c/c7/Dragon.png/revision/latest/thumbnail/width/360/height/360?cb=20221128103212");
         let combine_amount = 1;
-        let property_values = vector[10, 0, 5];
+        let property_values = vector[10, 5];
         let ability_property = string::utf8(b"Fire imbued");
-        create_equipment_collection(
+        create_sword_collection(
             &account,
             name,
             description,
@@ -990,16 +986,16 @@ module overmind::breeder_core {
 
     #[test]
     #[expected_failure(abort_code = 3, location = Self)]
-    fun test_create_equipment_collection_incorrect_combine_amount_too_big() acquires State {
+    fun test_create_sword_collection_incorrect_combine_amount_too_big() acquires State {
         let account = account::create_account_for_test(@0xCAFE);
-        let name = string::utf8(b"Equipment collection");
-        let description = string::utf8(b"This is a equipment collection");
+        let name = string::utf8(b"Sword collection");
+        let description = string::utf8(b"This is a sword collection");
         let uri =
-            string::utf8(b"https://i.pinimg.com/originals/07/6b/b1/076bb1fbef7d70f0a1a961ab8c136a22.jpg");
+            string::utf8(b"https://static.wikia.nocookie.net/dank_memer/images/c/c7/Dragon.png/revision/latest/thumbnail/width/360/height/360?cb=20221128103212");
         let combine_amount = 2222;
-        let property_values = vector[10, 0, 5];
+        let property_values = vector[10, 5];
         let ability_property = string::utf8(b"Fire imbued");
-        create_equipment_collection(
+        create_sword_collection(
             &account,
             name,
             description,
@@ -1012,16 +1008,16 @@ module overmind::breeder_core {
 
     #[test]
     #[expected_failure(abort_code = 4, location = Self)]
-    fun test_create_equipment_collection_incorrect_property_values_sum() acquires State {
+    fun test_create_sword_collection_incorrect_property_values_sum() acquires State {
         let account = account::create_account_for_test(@0xCAFE);
-        let name = string::utf8(b"Equipment collection");
-        let description = string::utf8(b"This is a equipment collection");
+        let name = string::utf8(b"Sword collection");
+        let description = string::utf8(b"This is a sword collection");
         let uri =
-            string::utf8(b"https://i.pinimg.com/originals/07/6b/b1/076bb1fbef7d70f0a1a961ab8c136a22.jpg");
+            string::utf8(b"https://static.wikia.nocookie.net/dank_memer/images/c/c7/Dragon.png/revision/latest/thumbnail/width/360/height/360?cb=20221128103212");
         let combine_amount = 4;
         let property_values = vector[10, 55, 5];
         let ability_property = string::utf8(b"Fire imbued");
-        create_equipment_collection(
+        create_sword_collection(
             &account,
             name,
             description,
@@ -1034,16 +1030,16 @@ module overmind::breeder_core {
 
     #[test]
     #[expected_failure(abort_code = 1, location = Self)]
-    fun test_create_equipment_collection_state_not_initialized() acquires State {
+    fun test_create_sword_collection_state_not_initialized() acquires State {
         let account = account::create_account_for_test(@0xCAFE);
-        let name = string::utf8(b"Equipment collection");
-        let description = string::utf8(b"This is a equipment collection");
+        let name = string::utf8(b"Sword collection");
+        let description = string::utf8(b"This is a sword collection");
         let uri =
-            string::utf8(b"https://i.pinimg.com/originals/07/6b/b1/076bb1fbef7d70f0a1a961ab8c136a22.jpg");
+            string::utf8(b"https://static.wikia.nocookie.net/dank_memer/images/c/c7/Dragon.png/revision/latest/thumbnail/width/360/height/360?cb=20221128103212");
         let combine_amount = 4;
         let property_values = vector[10, 0, 3];
         let ability_property = string::utf8(b"Fire imbued");
-        create_equipment_collection(
+        create_sword_collection(
             &account,
             name,
             description,
@@ -1056,7 +1052,7 @@ module overmind::breeder_core {
 
     #[test]
     #[expected_failure(abort_code = 5, location = Self)]
-    fun test_create_equipment_collection_already_exists() acquires State {
+    fun test_create_sword_collection_already_exists() acquires State {
         let aptos_framework = account::create_account_for_test(@aptos_framework);
         timestamp::set_time_has_started_for_testing(&aptos_framework);
 
@@ -1064,14 +1060,14 @@ module overmind::breeder_core {
         init(&admin);
 
         let account = account::create_account_for_test(@0xCAFE);
-        let name = string::utf8(b"Equipment collection");
-        let description = string::utf8(b"This is a equipment collection");
+        let name = string::utf8(b"Sword collection");
+        let description = string::utf8(b"This is a sword collection");
         let uri =
-            string::utf8(b"https://i.pinimg.com/originals/07/6b/b1/076bb1fbef7d70f0a1a961ab8c136a22.jpg");
+            string::utf8(b"https://static.wikia.nocookie.net/dank_memer/images/c/c7/Dragon.png/revision/latest/thumbnail/width/360/height/360?cb=20221128103212");
         let combine_amount = 4;
         let property_values = vector[10, 0, 3];
         let ability_property = string::utf8(b"Fire imbued");
-        create_equipment_collection(
+        create_sword_collection(
             &account,
             name,
             description,
@@ -1080,7 +1076,7 @@ module overmind::breeder_core {
             property_values,
             ability_property
         );
-        create_equipment_collection(
+        create_sword_collection(
             &account,
             name,
             description,
@@ -1092,7 +1088,7 @@ module overmind::breeder_core {
     }
 
     #[test]
-    fun test_create_monster() acquires State {
+    fun test_create_dragon() acquires State {
         let aptos_framework = account::create_account_for_test(@aptos_framework);
         timestamp::set_time_has_started_for_testing(&aptos_framework);
 
@@ -1100,13 +1096,13 @@ module overmind::breeder_core {
         init(&admin);
 
         let account = account::create_account_for_test(@0xCAFE);
-        let collection_name = string::utf8(b"Monster collection");
-        let collection_description = string::utf8(b"This is a monster collection");
+        let collection_name = string::utf8(b"Dragon collection");
+        let collection_description = string::utf8(b"This is a dragon collection");
         let collection_uri =
-            string::utf8(b"https://upload.wikimedia.org/wikipedia/commons/2/24/Monster_Energy_sold_in_China.jpg");
+            string::utf8(b"https://static.wikia.nocookie.net/dank_memer/images/c/c7/Dragon.png/revision/latest/thumbnail/width/360/height/360?cb=20221128103212");
         let breeding_time = 60 * 60 * 24 * 21 + 60 * 60 * 11;
         let ability_property = string::utf8(b"YEET");
-        create_monster_collection(
+        create_dragon_collection(
             &account,
             collection_name,
             collection_description,
@@ -1118,26 +1114,26 @@ module overmind::breeder_core {
         let resource_account_address = account::create_resource_address(&@admin, BREEDER_SEED);
         let creation_number = account::get_guid_next_creation_num(resource_account_address);
 
-        let monster_name = string::utf8(b"The first monster");
-        let monster_description = string::utf8(b"This is the very first monster in this collection");
-        let monster_uri = string::utf8(b"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQy9fkzKQ1xcpJgK_ZlsDg1mFRUL64Rk1bzmjiZdqdpufyo4z41QRvRteq-M8PzVJXM_Mc&usqp=CAU");
-        create_monster(&account, collection_name, monster_name, monster_description, monster_uri);
+        let dragon_name = string::utf8(b"The first dragon");
+        let dragon_description = string::utf8(b"This is the very first dragon in this collection");
+        let dragon_uri = string::utf8(b"https://static.wikia.nocookie.net/dank_memer/images/c/c7/Dragon.png/revision/latest/thumbnail/width/360/height/360?cb=20221128103212");
+        create_dragon(&account, collection_name, dragon_name, dragon_description, dragon_uri);
 
         let state = borrow_global<State>(@admin);
         assert!(simple_map::length(&state.breeder.collections) == 1, 0);
         assert!(simple_map::contains_key(&state.breeder.collections, &collection_name), 1);
         assert!(simple_map::length(&state.breeder.ongoing_breedings) == 0, 2);
-        assert!(event::counter(&state.breeder.create_monster_collection_events) == 1, 3);
-        assert!(event::counter(&state.breeder.create_monster_events) == 1, 4);
-        assert!(event::counter(&state.breeder.breed_monster_events) == 0, 5);
-        assert!(event::counter(&state.breeder.hatch_monster_events) == 0, 6);
+        assert!(event::counter(&state.breeder.create_dragon_collection_events) == 1, 3);
+        assert!(event::counter(&state.breeder.create_dragon_events) == 1, 4);
+        assert!(event::counter(&state.breeder.breed_dragons_events) == 0, 5);
+        assert!(event::counter(&state.breeder.hatch_dragon_events) == 0, 6);
         assert!(simple_map::length(&state.combiner.collections) == 0, 7);
-        assert!(event::counter(&state.combiner.create_equipment_collection_events) == 0, 8);
-        assert!(event::counter(&state.combiner.create_equipment_events) == 0, 9);
-        assert!(event::counter(&state.combiner.combine_equipment_events) == 0, 10);
+        assert!(event::counter(&state.combiner.create_sword_collection_events) == 0, 8);
+        assert!(event::counter(&state.combiner.create_sword_events) == 0, 9);
+        assert!(event::counter(&state.combiner.combine_swords_events) == 0, 10);
 
-        let monster_race = simple_map::borrow(&state.breeder.collections, &collection_name);
-        assert!(monster_race.breeding_time == breeding_time, 11);
+        let dragon_race = simple_map::borrow(&state.breeder.collections, &collection_name);
+        assert!(dragon_race.breeding_time == breeding_time, 11);
 
         let expected_starting_properties = vector[
             bcs::to_bytes(&40),
@@ -1145,7 +1141,7 @@ module overmind::breeder_core {
             bcs::to_bytes(&7),
             bcs::to_bytes(&ability_property)
         ];
-        assert!(monster_race.starting_properties == expected_starting_properties, 12);
+        assert!(dragon_race.starting_properties == expected_starting_properties, 12);
 
         let token_address = object::create_guid_object_address(resource_account_address, creation_number);
         let token_object = object::address_to_object<Token>(token_address);
@@ -1157,9 +1153,9 @@ module overmind::breeder_core {
         assert!(!aptos_token::is_mutable_uri(token_object), 18);
         assert!(token::creator(token_object) == resource_account_address, 19);
         assert!(token::collection_name(token_object) == collection_name, 20);
-        assert!(token::description(token_object) == monster_description, 21);
-        assert!(token::name(token_object) == monster_name, 22);
-        assert!(token::uri(token_object) == monster_uri, 23);
+        assert!(token::description(token_object) == dragon_description, 21);
+        assert!(token::name(token_object) == dragon_name, 22);
+        assert!(token::uri(token_object) == dragon_uri, 23);
 
         let maybe_token_royalty = token::royalty(token_object);
         assert!(option::is_some(&maybe_token_royalty), 24);
@@ -1172,31 +1168,31 @@ module overmind::breeder_core {
 
     #[test]
     #[expected_failure(abort_code = 1, location = Self)]
-    fun test_create_monster_state_not_initalized() acquires State {
+    fun test_create_dragon_state_not_initalized() acquires State {
         let account = account::create_account_for_test(@0xCAFE);
-        let collection_name = string::utf8(b"Monster collection");
-        let monster_name = string::utf8(b"The first monster");
-        let monster_description = string::utf8(b"This is the very first monster in this collection");
-        let monster_uri = string::utf8(b"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQy9fkzKQ1xcpJgK_ZlsDg1mFRUL64Rk1bzmjiZdqdpufyo4z41QRvRteq-M8PzVJXM_Mc&usqp=CAU");
-        create_monster(&account, collection_name, monster_name, monster_description, monster_uri);
+        let collection_name = string::utf8(b"Dragon collection");
+        let dragon_name = string::utf8(b"The first dragon");
+        let dragon_description = string::utf8(b"This is the very first dragon in this collection");
+        let dragon_uri = string::utf8(b"https://static.wikia.nocookie.net/dank_memer/images/c/c7/Dragon.png/revision/latest/thumbnail/width/360/height/360?cb=20221128103212");
+        create_dragon(&account, collection_name, dragon_name, dragon_description, dragon_uri);
     }
 
     #[test]
     #[expected_failure(abort_code = 6, location = Self)]
-    fun test_create_monster_collection_does_not_exist() acquires State {
+    fun test_create_dragon_collection_does_not_exist() acquires State {
         let admin = account::create_account_for_test(@admin);
         init(&admin);
 
         let account = account::create_account_for_test(@0xCAFE);
-        let collection_name = string::utf8(b"Monster collection");
-        let monster_name = string::utf8(b"The first monster");
-        let monster_description = string::utf8(b"This is the very first monster in this collection");
-        let monster_uri = string::utf8(b"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQy9fkzKQ1xcpJgK_ZlsDg1mFRUL64Rk1bzmjiZdqdpufyo4z41QRvRteq-M8PzVJXM_Mc&usqp=CAU");
-        create_monster(&account, collection_name, monster_name, monster_description, monster_uri);
+        let collection_name = string::utf8(b"Dragon collection");
+        let dragon_name = string::utf8(b"The first dragon");
+        let dragon_description = string::utf8(b"This is the very first dragon in this collection");
+        let dragon_uri = string::utf8(b"https://static.wikia.nocookie.net/dank_memer/images/c/c7/Dragon.png/revision/latest/thumbnail/width/360/height/360?cb=20221128103212");
+        create_dragon(&account, collection_name, dragon_name, dragon_description, dragon_uri);
     }
 
     #[test]
-    fun test_create_equipment() acquires State {
+    fun test_create_sword() acquires State {
         let aptos_framework = account::create_account_for_test(@aptos_framework);
         timestamp::set_time_has_started_for_testing(&aptos_framework);
 
@@ -1204,14 +1200,14 @@ module overmind::breeder_core {
         init(&admin);
 
         let account = account::create_account_for_test(@0xCAFE);
-        let collection_name = string::utf8(b"Equipment collection");
-        let collection_description = string::utf8(b"This is a equipment collection");
+        let collection_name = string::utf8(b"Sword collection");
+        let collection_description = string::utf8(b"This is a sword collection");
         let collection_uri =
-            string::utf8(b"https://i.pinimg.com/originals/07/6b/b1/076bb1fbef7d70f0a1a961ab8c136a22.jpg");
+            string::utf8(b"https://static.wikia.nocookie.net/dank_memer/images/c/c7/Dragon.png/revision/latest/thumbnail/width/360/height/360?cb=20221128103212");
         let combine_amount = 4;
-        let property_values = vector[10, 0, 5];
+        let property_values = vector[10, 5];
         let ability_property = string::utf8(b"Fire imbued");
-        create_equipment_collection(
+        create_sword_collection(
             &account,
             collection_name,
             collection_description,
@@ -1224,23 +1220,23 @@ module overmind::breeder_core {
         let resource_account_address = account::create_resource_address(&@admin, BREEDER_SEED);
         let creation_number = account::get_guid_next_creation_num(resource_account_address);
 
-        let equipment_name = string::utf8(b"Eggscalibur");
-        let equipment_description = string::utf8(b"For a true chef");
-        let equipment_uri = string::utf8(b"https://cdnb.artstation.com/p/assets/covers/images/032/429/081/large/james-jones-james-jones-th3.jpg?1684926233");
-        create_equipment(&account, collection_name, equipment_name, equipment_description, equipment_uri, 2);
+        let sword_name = string::utf8(b"Eggscalibur");
+        let sword_description = string::utf8(b"For a true chef");
+        let sword_uri = string::utf8(b"https://cdnb.artstation.com/p/assets/covers/images/032/429/081/large/james-jones-james-jones-th3.jpg?1684926233");
+        create_sword(&account, collection_name, sword_name, sword_description, sword_uri, 2);
 
         let state = borrow_global<State>(@admin);
         assert!(simple_map::length(&state.breeder.collections) == 0, 0);
         assert!(simple_map::length(&state.breeder.ongoing_breedings) == 0, 1);
-        assert!(event::counter(&state.breeder.create_monster_collection_events) == 0, 2);
-        assert!(event::counter(&state.breeder.create_monster_events) == 0, 3);
-        assert!(event::counter(&state.breeder.breed_monster_events) == 0, 4);
-        assert!(event::counter(&state.breeder.hatch_monster_events) == 0, 5);
+        assert!(event::counter(&state.breeder.create_dragon_collection_events) == 0, 2);
+        assert!(event::counter(&state.breeder.create_dragon_events) == 0, 3);
+        assert!(event::counter(&state.breeder.breed_dragons_events) == 0, 4);
+        assert!(event::counter(&state.breeder.hatch_dragon_events) == 0, 5);
         assert!(simple_map::length(&state.combiner.collections) == 1, 6);
         assert!(simple_map::contains_key(&state.combiner.collections, &collection_name), 7);
-        assert!(event::counter(&state.combiner.create_equipment_collection_events) == 1, 8);
-        assert!(event::counter(&state.combiner.create_equipment_events) == 1, 9);
-        assert!(event::counter(&state.combiner.combine_equipment_events) == 0, 10);
+        assert!(event::counter(&state.combiner.create_sword_collection_events) == 1, 8);
+        assert!(event::counter(&state.combiner.create_sword_events) == 1, 9);
+        assert!(event::counter(&state.combiner.combine_swords_events) == 0, 10);
 
         let equipment = simple_map::borrow(&state.combiner.collections, &collection_name);
         assert!(equipment.combine_amount == combine_amount, 11);
@@ -1264,9 +1260,9 @@ module overmind::breeder_core {
             assert!(!aptos_token::is_mutable_uri(token_object), 18 + 15 * counter);
             assert!(token::creator(token_object) == resource_account_address, 19 + 15 * counter);
             assert!(token::collection_name(token_object) == collection_name, 20 + 15 * counter);
-            assert!(token::description(token_object) == equipment_description, 21 + 15 * counter);
-            assert!(token::name(token_object) == equipment_name, 22 + 15 * counter);
-            assert!(token::uri(token_object) == equipment_uri, 23 + 15 * counter);
+            assert!(token::description(token_object) == sword_description, 21 + 15 * counter);
+            assert!(token::name(token_object) == sword_name, 22 + 15 * counter);
+            assert!(token::uri(token_object) == sword_uri, 23 + 15 * counter);
 
             let maybe_token_royalty = token::royalty(token_object);
             assert!(option::is_some(&maybe_token_royalty), 24 + 15 * counter);
@@ -1282,31 +1278,31 @@ module overmind::breeder_core {
 
     #[test]
     #[expected_failure(abort_code = 1, location = Self)]
-    fun test_create_equipment_state_not_initialized() acquires State {
+    fun test_create_sword_state_not_initialized() acquires State {
         let account = account::create_account_for_test(@0xCAFE);
-        let collection_name = string::utf8(b"Equipment collection");
-        let equipment_name = string::utf8(b"Eggscalibur");
-        let equipment_description = string::utf8(b"For a true chef");
-        let equipment_uri = string::utf8(b"https://cdnb.artstation.com/p/assets/covers/images/032/429/081/large/james-jones-james-jones-th3.jpg?1684926233");
-        create_equipment(&account, collection_name, equipment_name, equipment_description, equipment_uri, 2);
+        let collection_name = string::utf8(b"Sword collection");
+        let sword_name = string::utf8(b"Eggscalibur");
+        let sword_description = string::utf8(b"For a true chef");
+        let sword_uri = string::utf8(b"https://cdnb.artstation.com/p/assets/covers/images/032/429/081/large/james-jones-james-jones-th3.jpg?1684926233");
+        create_sword(&account, collection_name, sword_name, sword_description, sword_uri, 2);
     }
 
     #[test]
     #[expected_failure(abort_code = 6, location = Self)]
-    fun test_create_equipment_collection_does_not_exist() acquires State {
+    fun test_create_sword_collection_does_not_exist() acquires State {
         let admin = account::create_account_for_test(@admin);
         init(&admin);
 
         let account = account::create_account_for_test(@0xCAFE);
-        let collection_name = string::utf8(b"Equipment collection");
-        let equipment_name = string::utf8(b"Eggscalibur");
-        let equipment_description = string::utf8(b"For a true chef");
-        let equipment_uri = string::utf8(b"https://cdnb.artstation.com/p/assets/covers/images/032/429/081/large/james-jones-james-jones-th3.jpg?1684926233");
-        create_equipment(&account, collection_name, equipment_name, equipment_description, equipment_uri, 2);
+        let collection_name = string::utf8(b"Sword collection");
+        let sword_name = string::utf8(b"Eggscalibur");
+        let sword_description = string::utf8(b"For a true chef");
+        let sword_uri = string::utf8(b"https://cdnb.artstation.com/p/assets/covers/images/032/429/081/large/james-jones-james-jones-th3.jpg?1684926233");
+        create_sword(&account, collection_name, sword_name, sword_description, sword_uri, 2);
     }
 
     #[test]
-    fun test_breed_monsters() acquires State {
+    fun test_breed_dragons() acquires State {
         let aptos_framework = account::create_account_for_test(@aptos_framework);
         timestamp::set_time_has_started_for_testing(&aptos_framework);
         features::change_feature_flags(
@@ -1319,13 +1315,13 @@ module overmind::breeder_core {
         init(&admin);
 
         let account = account::create_account_for_test(@0xCAFE);
-        let collection_name = string::utf8(b"Monster collection");
-        let collection_description = string::utf8(b"This is a monster collection");
+        let collection_name = string::utf8(b"Dragon collection");
+        let collection_description = string::utf8(b"This is a dragon collection");
         let collection_uri =
-            string::utf8(b"https://upload.wikimedia.org/wikipedia/commons/2/24/Monster_Energy_sold_in_China.jpg");
+            string::utf8(b"https://static.wikia.nocookie.net/dank_memer/images/c/c7/Dragon.png/revision/latest/thumbnail/width/360/height/360?cb=20221128103212");
         let breeding_time = 60 * 60 * 24 * 21 + 60 * 60 * 11;
         let ability_property = string::utf8(b"YEET");
-        create_monster_collection(
+        create_dragon_collection(
             &account,
             collection_name,
             collection_description,
@@ -1337,39 +1333,39 @@ module overmind::breeder_core {
         let resource_account_address = account::create_resource_address(&@admin, BREEDER_SEED);
 
         let first_creation_number = account::get_guid_next_creation_num(resource_account_address);
-        let first_monster_name = string::utf8(b"The first monster");
-        let first_monster_description = string::utf8(b"This is the very first monster in this collection");
-        let first_monster_uri = string::utf8(b"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQy9fkzKQ1xcpJgK_ZlsDg1mFRUL64Rk1bzmjiZdqdpufyo4z41QRvRteq-M8PzVJXM_Mc&usqp=CAU");
-        create_monster(&account, collection_name, first_monster_name, first_monster_description, first_monster_uri);
+        let first_dragon_name = string::utf8(b"The first dragon");
+        let first_dragon_description = string::utf8(b"This is the very first dragon in this collection");
+        let first_dragon_uri = string::utf8(b"https://static.wikia.nocookie.net/dank_memer/images/c/c7/Dragon.png/revision/latest/thumbnail/width/360/height/360?cb=20221128103212");
+        create_dragon(&account, collection_name, first_dragon_name, first_dragon_description, first_dragon_uri);
 
         let second_creation_number = account::get_guid_next_creation_num(resource_account_address);
-        let second_monster_name = string::utf8(b"The second monster");
-        let second_monster_description = string::utf8(b"This is another monster in this collection");
-        let second_monster_uri = string::utf8(b"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQy9fkzKQ1xcpJgK_ZlsDg1mFRUL64Rk1bzmjiZdqdpufyo4z41QRvRteq-M8PzVJXM_Mc&usqp=CAU");
-        create_monster(&account, collection_name, second_monster_name, second_monster_description, second_monster_uri);
+        let second_dragon_name = string::utf8(b"The second dragon");
+        let second_dragon_description = string::utf8(b"This is another dragon in this collection");
+        let second_dragon_uri = string::utf8(b"https://static.wikia.nocookie.net/dank_memer/images/c/c7/Dragon.png/revision/latest/thumbnail/width/360/height/360?cb=20221128103212");
+        create_dragon(&account, collection_name, second_dragon_name, second_dragon_description, second_dragon_uri);
 
         let current_timestamp = timestamp::now_seconds();
-        breed_monsters(&account, collection_name, first_creation_number, second_creation_number);
+        breed_dragons(&account, collection_name, first_creation_number, second_creation_number);
 
         let state = borrow_global<State>(@admin);
         assert!(simple_map::length(&state.breeder.collections) == 1, 0);
         assert!(simple_map::contains_key(&state.breeder.collections, &collection_name), 1);
         assert!(simple_map::length(&state.breeder.ongoing_breedings) == 1, 2);
-        assert!(event::counter(&state.breeder.create_monster_collection_events) == 1, 3);
-        assert!(event::counter(&state.breeder.create_monster_events) == 2, 4);
-        assert!(event::counter(&state.breeder.breed_monster_events) == 1, 5);
-        assert!(event::counter(&state.breeder.hatch_monster_events) == 0, 6);
+        assert!(event::counter(&state.breeder.create_dragon_collection_events) == 1, 3);
+        assert!(event::counter(&state.breeder.create_dragon_events) == 2, 4);
+        assert!(event::counter(&state.breeder.breed_dragons_events) == 1, 5);
+        assert!(event::counter(&state.breeder.hatch_dragon_events) == 0, 6);
         assert!(simple_map::length(&state.combiner.collections) == 0, 7);
-        assert!(event::counter(&state.combiner.create_equipment_collection_events) == 0, 8);
-        assert!(event::counter(&state.combiner.create_equipment_events) == 0, 9);
-        assert!(event::counter(&state.combiner.combine_equipment_events) == 0, 10);
+        assert!(event::counter(&state.combiner.create_sword_collection_events) == 0, 8);
+        assert!(event::counter(&state.combiner.create_sword_events) == 0, 9);
+        assert!(event::counter(&state.combiner.combine_swords_events) == 0, 10);
 
-        let first_monster_address =
+        let first_dragon_address =
             object::create_guid_object_address(resource_account_address, first_creation_number);
-        let second_monster_address =
+        let second_dragon_address =
             object::create_guid_object_address(resource_account_address, second_creation_number);
-        let breeding_key_bytes = bcs::to_bytes(&first_monster_address);
-        vector::append(&mut breeding_key_bytes, bcs::to_bytes(&second_monster_address));
+        let breeding_key_bytes = bcs::to_bytes(&first_dragon_address);
+        vector::append(&mut breeding_key_bytes, bcs::to_bytes(&second_dragon_address));
 
         let breeding_key = aptos_hash::sha3_512(breeding_key_bytes);
         assert!(simple_map::contains_key(&state.breeder.ongoing_breedings, &breeding_key), 11);
@@ -1384,8 +1380,8 @@ module overmind::breeder_core {
         };
         assert!(lower_limit <= breeding_end && breeding_end <= current_timestamp + breeding_time + 1, 12);
 
-        let monster_race = simple_map::borrow(&state.breeder.collections, &collection_name);
-        assert!(monster_race.breeding_time == breeding_time, 13);
+        let dragon_race = simple_map::borrow(&state.breeder.collections, &collection_name);
+        assert!(dragon_race.breeding_time == breeding_time, 13);
 
         let expected_starting_properties = vector[
             bcs::to_bytes(&40),
@@ -1393,37 +1389,37 @@ module overmind::breeder_core {
             bcs::to_bytes(&7),
             bcs::to_bytes(&ability_property)
         ];
-        assert!(monster_race.starting_properties == expected_starting_properties, 14);
+        assert!(dragon_race.starting_properties == expected_starting_properties, 14);
 
-        let first_monster_token = object::address_to_object<Token>(first_monster_address);
-        assert!(!object::ungated_transfer_allowed(first_monster_token), 15);
+        let first_dragon_token = object::address_to_object<Token>(first_dragon_address);
+        assert!(!object::ungated_transfer_allowed(first_dragon_token), 15);
 
-        let second_monster_token = object::address_to_object<Token>(second_monster_address);
-        assert!(!object::ungated_transfer_allowed(second_monster_token), 16);
+        let second_dragon_token = object::address_to_object<Token>(second_dragon_address);
+        assert!(!object::ungated_transfer_allowed(second_dragon_token), 16);
     }
 
     #[test]
     #[expected_failure(abort_code = 1, location = Self)]
-    fun test_breed_monsters_state_not_initialized() acquires State {
+    fun test_breed_dragons_state_not_initialized() acquires State {
         let account = account::create_account_for_test(@0xCAFE);
-        let collection_name = string::utf8(b"Monster collection");
-        breed_monsters(&account, collection_name, 156, 54);
+        let collection_name = string::utf8(b"Dragon collection");
+        breed_dragons(&account, collection_name, 156, 54);
     }
 
     #[test]
     #[expected_failure(abort_code = 6, location = Self)]
-    fun test_breed_monsters_collection_does_not_exist() acquires State {
+    fun test_breed_dragons_collection_does_not_exist() acquires State {
         let admin = account::create_account_for_test(@admin);
         init(&admin);
 
         let account = account::create_account_for_test(@0xCAFE);
-        let collection_name = string::utf8(b"Monster collection");
-        breed_monsters(&account, collection_name, 156, 54);
+        let collection_name = string::utf8(b"Dragon collection");
+        breed_dragons(&account, collection_name, 156, 54);
     }
 
     #[test]
     #[expected_failure(abort_code = 7, location = Self)]
-    fun test_breed_monster_signer_does_not_own_the_first_token() acquires State {
+    fun test_breed_dragons_signer_does_not_own_the_first_token() acquires State {
         let aptos_framework = account::create_account_for_test(@aptos_framework);
         timestamp::set_time_has_started_for_testing(&aptos_framework);
         features::change_feature_flags(
@@ -1436,13 +1432,13 @@ module overmind::breeder_core {
         init(&admin);
 
         let account = account::create_account_for_test(@0xCAFE);
-        let collection_name = string::utf8(b"Monster collection");
-        let collection_description = string::utf8(b"This is a monster collection");
+        let collection_name = string::utf8(b"Dragon collection");
+        let collection_description = string::utf8(b"This is a dragon collection");
         let collection_uri =
-            string::utf8(b"https://upload.wikimedia.org/wikipedia/commons/2/24/Monster_Energy_sold_in_China.jpg");
+            string::utf8(b"https://static.wikia.nocookie.net/dank_memer/images/c/c7/Dragon.png/revision/latest/thumbnail/width/360/height/360?cb=20221128103212");
         let breeding_time = 60 * 60 * 24 * 21 + 60 * 60 * 11;
         let ability_property = string::utf8(b"YEET");
-        create_monster_collection(
+        create_dragon_collection(
             &account,
             collection_name,
             collection_description,
@@ -1454,27 +1450,27 @@ module overmind::breeder_core {
         let resource_account_address = account::create_resource_address(&@admin, BREEDER_SEED);
 
         let first_creation_number = account::get_guid_next_creation_num(resource_account_address);
-        let first_monster_name = string::utf8(b"The first monster");
-        let first_monster_description = string::utf8(b"This is the very first monster in this collection");
-        let first_monster_uri = string::utf8(b"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQy9fkzKQ1xcpJgK_ZlsDg1mFRUL64Rk1bzmjiZdqdpufyo4z41QRvRteq-M8PzVJXM_Mc&usqp=CAU");
-        create_monster(&account, collection_name, first_monster_name, first_monster_description, first_monster_uri);
+        let first_dragon_name = string::utf8(b"The first dragon");
+        let first_dragon_description = string::utf8(b"This is the very first dragon in this collection");
+        let first_dragon_uri = string::utf8(b"https://static.wikia.nocookie.net/dank_memer/images/c/c7/Dragon.png/revision/latest/thumbnail/width/360/height/360?cb=20221128103212");
+        create_dragon(&account, collection_name, first_dragon_name, first_dragon_description, first_dragon_uri);
 
         let second_creation_number = account::get_guid_next_creation_num(resource_account_address);
-        let second_monster_name = string::utf8(b"The second monster");
-        let second_monster_description = string::utf8(b"This is another monster in this collection");
-        let second_monster_uri = string::utf8(b"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQy9fkzKQ1xcpJgK_ZlsDg1mFRUL64Rk1bzmjiZdqdpufyo4z41QRvRteq-M8PzVJXM_Mc&usqp=CAU");
-        create_monster(&account, collection_name, second_monster_name, second_monster_description, second_monster_uri);
+        let second_dragon_name = string::utf8(b"The second dragon");
+        let second_dragon_description = string::utf8(b"This is another dragon in this collection");
+        let second_dragon_uri = string::utf8(b"https://static.wikia.nocookie.net/dank_memer/images/c/c7/Dragon.png/revision/latest/thumbnail/width/360/height/360?cb=20221128103212");
+        create_dragon(&account, collection_name, second_dragon_name, second_dragon_description, second_dragon_uri);
 
-        let first_monster_address =
+        let first_dragon_address =
             object::create_guid_object_address(resource_account_address, first_creation_number);
-        object::transfer_raw(&account, first_monster_address, @0xBEEF);
+        object::transfer_raw(&account, first_dragon_address, @0xBEEF);
 
-        breed_monsters(&account, collection_name, first_creation_number, second_creation_number);
+        breed_dragons(&account, collection_name, first_creation_number, second_creation_number);
     }
 
     #[test]
     #[expected_failure(abort_code = 7, location = Self)]
-    fun test_breed_monster_signer_does_not_own_the_second_token() acquires State {
+    fun test_breed_dragons_signer_does_not_own_the_second_token() acquires State {
         let aptos_framework = account::create_account_for_test(@aptos_framework);
         timestamp::set_time_has_started_for_testing(&aptos_framework);
         features::change_feature_flags(
@@ -1487,13 +1483,13 @@ module overmind::breeder_core {
         init(&admin);
 
         let account = account::create_account_for_test(@0xCAFE);
-        let collection_name = string::utf8(b"Monster collection");
-        let collection_description = string::utf8(b"This is a monster collection");
+        let collection_name = string::utf8(b"Dragon collection");
+        let collection_description = string::utf8(b"This is a dragon collection");
         let collection_uri =
-            string::utf8(b"https://upload.wikimedia.org/wikipedia/commons/2/24/Monster_Energy_sold_in_China.jpg");
+            string::utf8(b"https://static.wikia.nocookie.net/dank_memer/images/c/c7/Dragon.png/revision/latest/thumbnail/width/360/height/360?cb=20221128103212");
         let breeding_time = 60 * 60 * 24 * 21 + 60 * 60 * 11;
         let ability_property = string::utf8(b"YEET");
-        create_monster_collection(
+        create_dragon_collection(
             &account,
             collection_name,
             collection_description,
@@ -1505,27 +1501,27 @@ module overmind::breeder_core {
         let resource_account_address = account::create_resource_address(&@admin, BREEDER_SEED);
 
         let first_creation_number = account::get_guid_next_creation_num(resource_account_address);
-        let first_monster_name = string::utf8(b"The first monster");
-        let first_monster_description = string::utf8(b"This is the very first monster in this collection");
-        let first_monster_uri = string::utf8(b"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQy9fkzKQ1xcpJgK_ZlsDg1mFRUL64Rk1bzmjiZdqdpufyo4z41QRvRteq-M8PzVJXM_Mc&usqp=CAU");
-        create_monster(&account, collection_name, first_monster_name, first_monster_description, first_monster_uri);
+        let first_dragon_name = string::utf8(b"The first dragon");
+        let first_dragon_description = string::utf8(b"This is the very first dragon in this collection");
+        let first_dragon_uri = string::utf8(b"https://static.wikia.nocookie.net/dank_memer/images/c/c7/Dragon.png/revision/latest/thumbnail/width/360/height/360?cb=20221128103212");
+        create_dragon(&account, collection_name, first_dragon_name, first_dragon_description, first_dragon_uri);
 
         let second_creation_number = account::get_guid_next_creation_num(resource_account_address);
-        let second_monster_name = string::utf8(b"The second monster");
-        let second_monster_description = string::utf8(b"This is another monster in this collection");
-        let second_monster_uri = string::utf8(b"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQy9fkzKQ1xcpJgK_ZlsDg1mFRUL64Rk1bzmjiZdqdpufyo4z41QRvRteq-M8PzVJXM_Mc&usqp=CAU");
-        create_monster(&account, collection_name, second_monster_name, second_monster_description, second_monster_uri);
+        let second_dragon_name = string::utf8(b"The second dragon");
+        let second_dragon_description = string::utf8(b"This is another dragon in this collection");
+        let second_dragon_uri = string::utf8(b"https://static.wikia.nocookie.net/dank_memer/images/c/c7/Dragon.png/revision/latest/thumbnail/width/360/height/360?cb=20221128103212");
+        create_dragon(&account, collection_name, second_dragon_name, second_dragon_description, second_dragon_uri);
 
-        let second_monster_address =
+        let second_dragon_address =
             object::create_guid_object_address(resource_account_address, second_creation_number);
-        object::transfer_raw(&account, second_monster_address, @0xBEEF);
+        object::transfer_raw(&account, second_dragon_address, @0xBEEF);
 
-        breed_monsters(&account, collection_name, first_creation_number, second_creation_number);
+        breed_dragons(&account, collection_name, first_creation_number, second_creation_number);
     }
 
     #[test]
     #[expected_failure(abort_code = 13, location = Self)]
-    fun test_breed_monster_first_monster_from_incorrect_collection() acquires State {
+    fun test_breed_dragon_first_monster_from_incorrect_collection() acquires State {
         let aptos_framework = account::create_account_for_test(@aptos_framework);
         timestamp::set_time_has_started_for_testing(&aptos_framework);
         features::change_feature_flags(
@@ -1538,13 +1534,13 @@ module overmind::breeder_core {
         init(&admin);
 
         let account = account::create_account_for_test(@0xCAFE);
-        let collection_name = string::utf8(b"Monster collection");
-        let collection_description = string::utf8(b"This is a monster collection");
+        let collection_name = string::utf8(b"Dragon collection");
+        let collection_description = string::utf8(b"This is a dragon collection");
         let collection_uri =
-            string::utf8(b"https://upload.wikimedia.org/wikipedia/commons/2/24/Monster_Energy_sold_in_China.jpg");
+            string::utf8(b"https://static.wikia.nocookie.net/dank_memer/images/c/c7/Dragon.png/revision/latest/thumbnail/width/360/height/360?cb=20221128103212");
         let breeding_time = 60 * 60 * 24 * 21 + 60 * 60 * 11;
         let ability_property = string::utf8(b"YEET");
-        create_monster_collection(
+        create_dragon_collection(
             &account,
             collection_name,
             collection_description,
@@ -1553,13 +1549,13 @@ module overmind::breeder_core {
             ability_property
         );
 
-        let another_collection_name = string::utf8(b"Monster collection 2");
-        let another_collection_description = string::utf8(b"This is another monster collection");
+        let another_collection_name = string::utf8(b"Dragon collection 2");
+        let another_collection_description = string::utf8(b"This is another dragon collection");
         let another_collection_uri =
-            string::utf8(b"https://upload.wikimedia.org/wikipedia/commons/2/24/Monster_Energy_sold_in_China.jpg");
+            string::utf8(b"https://static.wikia.nocookie.net/dank_memer/images/c/c7/Dragon.png/revision/latest/thumbnail/width/360/height/360?cb=20221128103212");
         let another_breeding_time = 60 * 60 * 24 * 21 + 60 * 60 * 11;
         let another_ability_property = string::utf8(b"BEET");
-        create_monster_collection(
+        create_dragon_collection(
             &account,
             another_collection_name,
             another_collection_description,
@@ -1571,23 +1567,23 @@ module overmind::breeder_core {
         let resource_account_address = account::create_resource_address(&@admin, BREEDER_SEED);
 
         let first_creation_number = account::get_guid_next_creation_num(resource_account_address);
-        let first_monster_name = string::utf8(b"The first monster");
-        let first_monster_description = string::utf8(b"This is the very first monster in this collection");
-        let first_monster_uri = string::utf8(b"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQy9fkzKQ1xcpJgK_ZlsDg1mFRUL64Rk1bzmjiZdqdpufyo4z41QRvRteq-M8PzVJXM_Mc&usqp=CAU");
-        create_monster(&account, another_collection_name, first_monster_name, first_monster_description, first_monster_uri);
+        let first_dragon_name = string::utf8(b"The first dragon");
+        let first_dragon_description = string::utf8(b"This is the very first dragon in this collection");
+        let first_dragon_uri = string::utf8(b"https://static.wikia.nocookie.net/dank_memer/images/c/c7/Dragon.png/revision/latest/thumbnail/width/360/height/360?cb=20221128103212");
+        create_dragon(&account, another_collection_name, first_dragon_name, first_dragon_description, first_dragon_uri);
 
         let second_creation_number = account::get_guid_next_creation_num(resource_account_address);
-        let second_monster_name = string::utf8(b"The second monster");
-        let second_monster_description = string::utf8(b"This is another monster in this collection");
-        let second_monster_uri = string::utf8(b"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQy9fkzKQ1xcpJgK_ZlsDg1mFRUL64Rk1bzmjiZdqdpufyo4z41QRvRteq-M8PzVJXM_Mc&usqp=CAU");
-        create_monster(&account, collection_name, second_monster_name, second_monster_description, second_monster_uri);
+        let second_dragon_name = string::utf8(b"The second dragon");
+        let second_dragon_description = string::utf8(b"This is another dragon in this collection");
+        let second_dragon_uri = string::utf8(b"https://static.wikia.nocookie.net/dank_memer/images/c/c7/Dragon.png/revision/latest/thumbnail/width/360/height/360?cb=20221128103212");
+        create_dragon(&account, collection_name, second_dragon_name, second_dragon_description, second_dragon_uri);
 
-        breed_monsters(&account, collection_name, first_creation_number, second_creation_number);
+        breed_dragons(&account, collection_name, first_creation_number, second_creation_number);
     }
 
     #[test]
     #[expected_failure(abort_code = 13, location = Self)]
-    fun test_breed_monster_second_monster_from_incorrect_collection() acquires State {
+    fun test_breed_dragon_second_monster_from_incorrect_collection() acquires State {
         let aptos_framework = account::create_account_for_test(@aptos_framework);
         timestamp::set_time_has_started_for_testing(&aptos_framework);
         features::change_feature_flags(
@@ -1600,13 +1596,13 @@ module overmind::breeder_core {
         init(&admin);
 
         let account = account::create_account_for_test(@0xCAFE);
-        let collection_name = string::utf8(b"Monster collection");
-        let collection_description = string::utf8(b"This is a monster collection");
+        let collection_name = string::utf8(b"Dragon collection");
+        let collection_description = string::utf8(b"This is a dragon collection");
         let collection_uri =
-            string::utf8(b"https://upload.wikimedia.org/wikipedia/commons/2/24/Monster_Energy_sold_in_China.jpg");
+            string::utf8(b"https://static.wikia.nocookie.net/dank_memer/images/c/c7/Dragon.png/revision/latest/thumbnail/width/360/height/360?cb=20221128103212");
         let breeding_time = 60 * 60 * 24 * 21 + 60 * 60 * 11;
         let ability_property = string::utf8(b"YEET");
-        create_monster_collection(
+        create_dragon_collection(
             &account,
             collection_name,
             collection_description,
@@ -1615,13 +1611,13 @@ module overmind::breeder_core {
             ability_property
         );
 
-        let another_collection_name = string::utf8(b"Monster collection 2");
-        let another_collection_description = string::utf8(b"This is another monster collection");
+        let another_collection_name = string::utf8(b"Dragon collection 2");
+        let another_collection_description = string::utf8(b"This is another dragon collection");
         let another_collection_uri =
-            string::utf8(b"https://upload.wikimedia.org/wikipedia/commons/2/24/Monster_Energy_sold_in_China.jpg");
+            string::utf8(b"https://static.wikia.nocookie.net/dank_memer/images/c/c7/Dragon.png/revision/latest/thumbnail/width/360/height/360?cb=20221128103212");
         let another_breeding_time = 60 * 60 * 24 * 21 + 60 * 60 * 11;
         let another_ability_property = string::utf8(b"BEET");
-        create_monster_collection(
+        create_dragon_collection(
             &account,
             another_collection_name,
             another_collection_description,
@@ -1633,23 +1629,23 @@ module overmind::breeder_core {
         let resource_account_address = account::create_resource_address(&@admin, BREEDER_SEED);
 
         let first_creation_number = account::get_guid_next_creation_num(resource_account_address);
-        let first_monster_name = string::utf8(b"The first monster");
-        let first_monster_description = string::utf8(b"This is the very first monster in this collection");
-        let first_monster_uri = string::utf8(b"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQy9fkzKQ1xcpJgK_ZlsDg1mFRUL64Rk1bzmjiZdqdpufyo4z41QRvRteq-M8PzVJXM_Mc&usqp=CAU");
-        create_monster(&account, collection_name, first_monster_name, first_monster_description, first_monster_uri);
+        let first_dragon_name = string::utf8(b"The first dragon");
+        let first_dragon_description = string::utf8(b"This is the very first dragon in this collection");
+        let first_dragon_uri = string::utf8(b"https://static.wikia.nocookie.net/dank_memer/images/c/c7/Dragon.png/revision/latest/thumbnail/width/360/height/360?cb=20221128103212");
+        create_dragon(&account, collection_name, first_dragon_name, first_dragon_description, first_dragon_uri);
 
         let second_creation_number = account::get_guid_next_creation_num(resource_account_address);
-        let second_monster_name = string::utf8(b"The second monster");
-        let second_monster_description = string::utf8(b"This is another monster in this collection");
-        let second_monster_uri = string::utf8(b"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQy9fkzKQ1xcpJgK_ZlsDg1mFRUL64Rk1bzmjiZdqdpufyo4z41QRvRteq-M8PzVJXM_Mc&usqp=CAU");
-        create_monster(&account, another_collection_name, second_monster_name, second_monster_description, second_monster_uri);
+        let second_dragon_name = string::utf8(b"The second dragon");
+        let second_dragon_description = string::utf8(b"This is another dragon in this collection");
+        let second_dragon_uri = string::utf8(b"https://static.wikia.nocookie.net/dank_memer/images/c/c7/Dragon.png/revision/latest/thumbnail/width/360/height/360?cb=20221128103212");
+        create_dragon(&account, another_collection_name, second_dragon_name, second_dragon_description, second_dragon_uri);
 
-        breed_monsters(&account, collection_name, first_creation_number, second_creation_number);
+        breed_dragons(&account, collection_name, first_creation_number, second_creation_number);
     }
 
     #[test]
     #[expected_failure(abort_code = 8, location = Self)]
-    fun test_breed_monsters_first_monster_already_breeding() acquires State {
+    fun test_breed_dragons_first_monster_already_breeding() acquires State {
         let aptos_framework = account::create_account_for_test(@aptos_framework);
         timestamp::set_time_has_started_for_testing(&aptos_framework);
         features::change_feature_flags(
@@ -1662,13 +1658,13 @@ module overmind::breeder_core {
         init(&admin);
 
         let account = account::create_account_for_test(@0xCAFE);
-        let collection_name = string::utf8(b"Monster collection");
-        let collection_description = string::utf8(b"This is a monster collection");
+        let collection_name = string::utf8(b"Dragon collection");
+        let collection_description = string::utf8(b"This is a dragon collection");
         let collection_uri =
-            string::utf8(b"https://upload.wikimedia.org/wikipedia/commons/2/24/Monster_Energy_sold_in_China.jpg");
+            string::utf8(b"https://static.wikia.nocookie.net/dank_memer/images/c/c7/Dragon.png/revision/latest/thumbnail/width/360/height/360?cb=20221128103212");
         let breeding_time = 60 * 60 * 24 * 21 + 60 * 60 * 11;
         let ability_property = string::utf8(b"YEET");
-        create_monster_collection(
+        create_dragon_collection(
             &account,
             collection_name,
             collection_description,
@@ -1680,31 +1676,31 @@ module overmind::breeder_core {
         let resource_account_address = account::create_resource_address(&@admin, BREEDER_SEED);
 
         let first_creation_number = account::get_guid_next_creation_num(resource_account_address);
-        let first_monster_name = string::utf8(b"The first monster");
-        let first_monster_description = string::utf8(b"This is the very first monster in this collection");
-        let first_monster_uri = string::utf8(b"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQy9fkzKQ1xcpJgK_ZlsDg1mFRUL64Rk1bzmjiZdqdpufyo4z41QRvRteq-M8PzVJXM_Mc&usqp=CAU");
-        create_monster(&account, collection_name, first_monster_name, first_monster_description, first_monster_uri);
+        let first_dragon_name = string::utf8(b"The first dragon");
+        let first_dragon_description = string::utf8(b"This is the very first dragon in this collection");
+        let first_dragon_uri = string::utf8(b"https://static.wikia.nocookie.net/dank_memer/images/c/c7/Dragon.png/revision/latest/thumbnail/width/360/height/360?cb=20221128103212");
+        create_dragon(&account, collection_name, first_dragon_name, first_dragon_description, first_dragon_uri);
 
         let second_creation_number = account::get_guid_next_creation_num(resource_account_address);
-        let second_monster_name = string::utf8(b"The second monster");
-        let second_monster_description = string::utf8(b"This is another monster in this collection");
-        let second_monster_uri = string::utf8(b"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQy9fkzKQ1xcpJgK_ZlsDg1mFRUL64Rk1bzmjiZdqdpufyo4z41QRvRteq-M8PzVJXM_Mc&usqp=CAU");
-        create_monster(&account, collection_name, second_monster_name, second_monster_description, second_monster_uri);
+        let second_dragon_name = string::utf8(b"The second dragon");
+        let second_dragon_description = string::utf8(b"This is another dragon in this collection");
+        let second_dragon_uri = string::utf8(b"https://static.wikia.nocookie.net/dank_memer/images/c/c7/Dragon.png/revision/latest/thumbnail/width/360/height/360?cb=20221128103212");
+        create_dragon(&account, collection_name, second_dragon_name, second_dragon_description, second_dragon_uri);
 
-        breed_monsters(&account, collection_name, first_creation_number, second_creation_number);
+        breed_dragons(&account, collection_name, first_creation_number, second_creation_number);
 
         let third_creation_number = account::get_guid_next_creation_num(resource_account_address);
-        let third_monster_name = string::utf8(b"The third monster");
-        let third_monster_description = string::utf8(b"This is another monster in this collection");
-        let third_monster_uri = string::utf8(b"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQy9fkzKQ1xcpJgK_ZlsDg1mFRUL64Rk1bzmjiZdqdpufyo4z41QRvRteq-M8PzVJXM_Mc&usqp=CAU");
-        create_monster(&account, collection_name, third_monster_name, third_monster_description, third_monster_uri);
+        let third_dragon_name = string::utf8(b"The third dragon");
+        let third_dragon_description = string::utf8(b"This is another dragon in this collection");
+        let third_dragon_uri = string::utf8(b"https://static.wikia.nocookie.net/dank_memer/images/c/c7/Dragon.png/revision/latest/thumbnail/width/360/height/360?cb=20221128103212");
+        create_dragon(&account, collection_name, third_dragon_name, third_dragon_description, third_dragon_uri);
 
-        breed_monsters(&account, collection_name, first_creation_number, third_creation_number);
+        breed_dragons(&account, collection_name, first_creation_number, third_creation_number);
     }
 
     #[test]
     #[expected_failure(abort_code = 8, location = Self)]
-    fun test_breed_monsters_second_monster_already_breeding() acquires State {
+    fun test_breed_dragons_second_monster_already_breeding() acquires State {
         let aptos_framework = account::create_account_for_test(@aptos_framework);
         timestamp::set_time_has_started_for_testing(&aptos_framework);
         features::change_feature_flags(
@@ -1717,13 +1713,13 @@ module overmind::breeder_core {
         init(&admin);
 
         let account = account::create_account_for_test(@0xCAFE);
-        let collection_name = string::utf8(b"Monster collection");
-        let collection_description = string::utf8(b"This is a monster collection");
+        let collection_name = string::utf8(b"Dragon collection");
+        let collection_description = string::utf8(b"This is a dragon collection");
         let collection_uri =
-            string::utf8(b"https://upload.wikimedia.org/wikipedia/commons/2/24/Monster_Energy_sold_in_China.jpg");
+            string::utf8(b"https://static.wikia.nocookie.net/dank_memer/images/c/c7/Dragon.png/revision/latest/thumbnail/width/360/height/360?cb=20221128103212");
         let breeding_time = 60 * 60 * 24 * 21 + 60 * 60 * 11;
         let ability_property = string::utf8(b"YEET");
-        create_monster_collection(
+        create_dragon_collection(
             &account,
             collection_name,
             collection_description,
@@ -1735,30 +1731,30 @@ module overmind::breeder_core {
         let resource_account_address = account::create_resource_address(&@admin, BREEDER_SEED);
 
         let first_creation_number = account::get_guid_next_creation_num(resource_account_address);
-        let first_monster_name = string::utf8(b"The first monster");
-        let first_monster_description = string::utf8(b"This is the very first monster in this collection");
-        let first_monster_uri = string::utf8(b"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQy9fkzKQ1xcpJgK_ZlsDg1mFRUL64Rk1bzmjiZdqdpufyo4z41QRvRteq-M8PzVJXM_Mc&usqp=CAU");
-        create_monster(&account, collection_name, first_monster_name, first_monster_description, first_monster_uri);
+        let first_dragon_name = string::utf8(b"The first dragon");
+        let first_dragon_description = string::utf8(b"This is the very first dragon in this collection");
+        let first_dragon_uri = string::utf8(b"https://static.wikia.nocookie.net/dank_memer/images/c/c7/Dragon.png/revision/latest/thumbnail/width/360/height/360?cb=20221128103212");
+        create_dragon(&account, collection_name, first_dragon_name, first_dragon_description, first_dragon_uri);
 
         let second_creation_number = account::get_guid_next_creation_num(resource_account_address);
-        let second_monster_name = string::utf8(b"The second monster");
-        let second_monster_description = string::utf8(b"This is another monster in this collection");
-        let second_monster_uri = string::utf8(b"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQy9fkzKQ1xcpJgK_ZlsDg1mFRUL64Rk1bzmjiZdqdpufyo4z41QRvRteq-M8PzVJXM_Mc&usqp=CAU");
-        create_monster(&account, collection_name, second_monster_name, second_monster_description, second_monster_uri);
+        let second_dragon_name = string::utf8(b"The second dragon");
+        let second_dragon_description = string::utf8(b"This is another dragon in this collection");
+        let second_dragon_uri = string::utf8(b"https://static.wikia.nocookie.net/dank_memer/images/c/c7/Dragon.png/revision/latest/thumbnail/width/360/height/360?cb=20221128103212");
+        create_dragon(&account, collection_name, second_dragon_name, second_dragon_description, second_dragon_uri);
 
-        breed_monsters(&account, collection_name, first_creation_number, second_creation_number);
+        breed_dragons(&account, collection_name, first_creation_number, second_creation_number);
 
         let third_creation_number = account::get_guid_next_creation_num(resource_account_address);
-        let third_monster_name = string::utf8(b"The third monster");
-        let third_monster_description = string::utf8(b"This is another monster in this collection");
-        let third_monster_uri = string::utf8(b"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQy9fkzKQ1xcpJgK_ZlsDg1mFRUL64Rk1bzmjiZdqdpufyo4z41QRvRteq-M8PzVJXM_Mc&usqp=CAU");
-        create_monster(&account, collection_name, third_monster_name, third_monster_description, third_monster_uri);
+        let third_dragon_name = string::utf8(b"The third dragon");
+        let third_dragon_description = string::utf8(b"This is another dragon in this collection");
+        let third_dragon_uri = string::utf8(b"https://static.wikia.nocookie.net/dank_memer/images/c/c7/Dragon.png/revision/latest/thumbnail/width/360/height/360?cb=20221128103212");
+        create_dragon(&account, collection_name, third_dragon_name, third_dragon_description, third_dragon_uri);
 
-        breed_monsters(&account, collection_name, third_creation_number, second_creation_number);
+        breed_dragons(&account, collection_name, third_creation_number, second_creation_number);
     }
 
     #[test]
-    fun test_hatch_monster() acquires State {
+    fun test_hatch_dragon() acquires State {
         let aptos_framework = account::create_account_for_test(@aptos_framework);
         timestamp::set_time_has_started_for_testing(&aptos_framework);
         features::change_feature_flags(
@@ -1771,13 +1767,13 @@ module overmind::breeder_core {
         init(&admin);
 
         let account = account::create_account_for_test(@0xCAFE);
-        let collection_name = string::utf8(b"Monster collection");
-        let collection_description = string::utf8(b"This is a monster collection");
+        let collection_name = string::utf8(b"Dragon collection");
+        let collection_description = string::utf8(b"This is a dragon collection");
         let collection_uri =
-            string::utf8(b"https://upload.wikimedia.org/wikipedia/commons/2/24/Monster_Energy_sold_in_China.jpg");
+            string::utf8(b"https://static.wikia.nocookie.net/dank_memer/images/c/c7/Dragon.png/revision/latest/thumbnail/width/360/height/360?cb=20221128103212");
         let breeding_time = 60 * 60 * 24 * 21 + 60 * 60 * 11;
         let ability_property = string::utf8(b"YEET");
-        create_monster_collection(
+        create_dragon_collection(
             &account,
             collection_name,
             collection_description,
@@ -1789,48 +1785,48 @@ module overmind::breeder_core {
         let resource_account_address = account::create_resource_address(&@admin, BREEDER_SEED);
 
         let first_creation_number = account::get_guid_next_creation_num(resource_account_address);
-        let first_monster_name = string::utf8(b"The first monster");
-        let first_monster_description = string::utf8(b"This is the very first monster in this collection");
-        let first_monster_uri = string::utf8(b"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQy9fkzKQ1xcpJgK_ZlsDg1mFRUL64Rk1bzmjiZdqdpufyo4z41QRvRteq-M8PzVJXM_Mc&usqp=CAU");
-        create_monster(&account, collection_name, first_monster_name, first_monster_description, first_monster_uri);
+        let first_dragon_name = string::utf8(b"The first dragon");
+        let first_dragon_description = string::utf8(b"This is the very first dragon in this collection");
+        let first_dragon_uri = string::utf8(b"https://static.wikia.nocookie.net/dank_memer/images/c/c7/Dragon.png/revision/latest/thumbnail/width/360/height/360?cb=20221128103212");
+        create_dragon(&account, collection_name, first_dragon_name, first_dragon_description, first_dragon_uri);
 
         let second_creation_number = account::get_guid_next_creation_num(resource_account_address);
-        let second_monster_name = string::utf8(b"The second monster");
-        let second_monster_description = string::utf8(b"This is another monster in this collection");
-        let second_monster_uri = string::utf8(b"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQy9fkzKQ1xcpJgK_ZlsDg1mFRUL64Rk1bzmjiZdqdpufyo4z41QRvRteq-M8PzVJXM_Mc&usqp=CAU");
-        create_monster(&account, collection_name, second_monster_name, second_monster_description, second_monster_uri);
+        let second_dragon_name = string::utf8(b"The second dragon");
+        let second_dragon_description = string::utf8(b"This is another dragon in this collection");
+        let second_dragon_uri = string::utf8(b"https://static.wikia.nocookie.net/dank_memer/images/c/c7/Dragon.png/revision/latest/thumbnail/width/360/height/360?cb=20221128103212");
+        create_dragon(&account, collection_name, second_dragon_name, second_dragon_description, second_dragon_uri);
 
-        breed_monsters(&account, collection_name, first_creation_number, second_creation_number);
+        breed_dragons(&account, collection_name, first_creation_number, second_creation_number);
         timestamp::fast_forward_seconds(breeding_time);
 
-        let new_monster_creation_number = account::get_guid_next_creation_num(resource_account_address);
-        let new_monster_name = string::utf8(b"Baby monster");
-        let new_monster_description = string::utf8(b"This is a newly born baby monster!");
-        let new_monster_uri = string::utf8(b"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQy9fkzKQ1xcpJgK_ZlsDg1mFRUL64Rk1bzmjiZdqdpufyo4z41QRvRteq-M8PzVJXM_Mc&usqp=CAU");
-        hatch_monster(
+        let new_dragon_creation_number = account::get_guid_next_creation_num(resource_account_address);
+        let new_dragon_name = string::utf8(b"Baby dragon");
+        let new_dragon_description = string::utf8(b"This is a newly born baby dragon!");
+        let new_dragon_uri = string::utf8(b"https://static.wikia.nocookie.net/dank_memer/images/c/c7/Dragon.png/revision/latest/thumbnail/width/360/height/360?cb=20221128103212");
+        hatch_dragon(
             &account,
             first_creation_number,
             second_creation_number,
-            new_monster_name,
-            new_monster_description,
-            new_monster_uri
+            new_dragon_name,
+            new_dragon_description,
+            new_dragon_uri
         );
 
         let state = borrow_global<State>(@admin);
         assert!(simple_map::length(&state.breeder.collections) == 1, 0);
         assert!(simple_map::contains_key(&state.breeder.collections, &collection_name), 1);
         assert!(simple_map::length(&state.breeder.ongoing_breedings) == 0, 2);
-        assert!(event::counter(&state.breeder.create_monster_collection_events) == 1, 3);
-        assert!(event::counter(&state.breeder.create_monster_events) == 2, 4);
-        assert!(event::counter(&state.breeder.breed_monster_events) == 1, 5);
-        assert!(event::counter(&state.breeder.hatch_monster_events) == 1, 6);
+        assert!(event::counter(&state.breeder.create_dragon_collection_events) == 1, 3);
+        assert!(event::counter(&state.breeder.create_dragon_events) == 2, 4);
+        assert!(event::counter(&state.breeder.breed_dragons_events) == 1, 5);
+        assert!(event::counter(&state.breeder.hatch_dragon_events) == 1, 6);
         assert!(simple_map::length(&state.combiner.collections) == 0, 7);
-        assert!(event::counter(&state.combiner.create_equipment_collection_events) == 0, 8);
-        assert!(event::counter(&state.combiner.create_equipment_events) == 0, 9);
-        assert!(event::counter(&state.combiner.combine_equipment_events) == 0, 10);
+        assert!(event::counter(&state.combiner.create_sword_collection_events) == 0, 8);
+        assert!(event::counter(&state.combiner.create_sword_events) == 0, 9);
+        assert!(event::counter(&state.combiner.combine_swords_events) == 0, 10);
 
-        let monster_race = simple_map::borrow(&state.breeder.collections, &collection_name);
-        assert!(monster_race.breeding_time == breeding_time, 11);
+        let dragon_race = simple_map::borrow(&state.breeder.collections, &collection_name);
+        assert!(dragon_race.breeding_time == breeding_time, 11);
 
         let expected_starting_properties = vector[
             bcs::to_bytes(&40),
@@ -1838,34 +1834,34 @@ module overmind::breeder_core {
             bcs::to_bytes(&7),
             bcs::to_bytes(&ability_property)
         ];
-        assert!(monster_race.starting_properties == expected_starting_properties, 12);
+        assert!(dragon_race.starting_properties == expected_starting_properties, 12);
 
-        let first_monster_address =
+        let first_dragon_address =
             object::create_guid_object_address(resource_account_address, first_creation_number);
-        let first_monster_token = object::address_to_object<Token>(first_monster_address);
-        assert!(object::ungated_transfer_allowed(first_monster_token), 13);
+        let first_dragon_token = object::address_to_object<Token>(first_dragon_address);
+        assert!(object::ungated_transfer_allowed(first_dragon_token), 13);
 
-        let second_monster_address =
+        let second_dragon_address =
             object::create_guid_object_address(resource_account_address, second_creation_number);
-        let second_monster_token = object::address_to_object<Token>(second_monster_address);
-        assert!(object::ungated_transfer_allowed(second_monster_token), 14);
+        let second_dragon_token = object::address_to_object<Token>(second_dragon_address);
+        assert!(object::ungated_transfer_allowed(second_dragon_token), 14);
 
-        let new_monster_address =
-            object::create_guid_object_address(resource_account_address, new_monster_creation_number);
-        let new_monster_token = object::address_to_object<Token>(new_monster_address);
-        assert!(!aptos_token::are_properties_mutable(new_monster_token), 15);
-        assert!(!aptos_token::is_burnable(new_monster_token), 16);
-        assert!(aptos_token::is_freezable_by_creator(new_monster_token), 17);
-        assert!(!aptos_token::is_mutable_description(new_monster_token), 18);
-        assert!(!aptos_token::is_mutable_name(new_monster_token), 19);
-        assert!(!aptos_token::is_mutable_uri(new_monster_token), 20);
-        assert!(token::creator(new_monster_token) == resource_account_address, 21);
-        assert!(token::collection_name(new_monster_token) == collection_name, 22);
-        assert!(token::description(new_monster_token) == new_monster_description, 23);
-        assert!(token::name(new_monster_token) == new_monster_name, 24);
-        assert!(token::uri(new_monster_token) == new_monster_uri, 25);
+        let new_dragon_address =
+            object::create_guid_object_address(resource_account_address, new_dragon_creation_number);
+        let new_dragon_token = object::address_to_object<Token>(new_dragon_address);
+        assert!(!aptos_token::are_properties_mutable(new_dragon_token), 15);
+        assert!(!aptos_token::is_burnable(new_dragon_token), 16);
+        assert!(aptos_token::is_freezable_by_creator(new_dragon_token), 17);
+        assert!(!aptos_token::is_mutable_description(new_dragon_token), 18);
+        assert!(!aptos_token::is_mutable_name(new_dragon_token), 19);
+        assert!(!aptos_token::is_mutable_uri(new_dragon_token), 20);
+        assert!(token::creator(new_dragon_token) == resource_account_address, 21);
+        assert!(token::collection_name(new_dragon_token) == collection_name, 22);
+        assert!(token::description(new_dragon_token) == new_dragon_description, 23);
+        assert!(token::name(new_dragon_token) == new_dragon_name, 24);
+        assert!(token::uri(new_dragon_token) == new_dragon_uri, 25);
 
-        let maybe_token_royalty = token::royalty(new_monster_token);
+        let maybe_token_royalty = token::royalty(new_dragon_token);
         assert!(option::is_some(&maybe_token_royalty), 26);
 
         let token_royalty = option::extract(&mut maybe_token_royalty);
@@ -1873,7 +1869,7 @@ module overmind::breeder_core {
         assert!(royalty::numerator(&token_royalty) == 1, 28);
         assert!(royalty::payee_address(&token_royalty) == resource_account_address, 29);
 
-        let property_map = object::address_to_object<PropertyMap>(new_monster_address);
+        let property_map = object::address_to_object<PropertyMap>(new_dragon_address);
         assert!(property_map::read_u64(&property_map, &string::utf8(b"Health")) == 80, 30);
         assert!(property_map::read_u64(&property_map, &string::utf8(b"Defence")) == 6, 31);
         assert!(property_map::read_u64(&property_map, &string::utf8(b"Strength")) == 14, 32);
@@ -1885,24 +1881,24 @@ module overmind::breeder_core {
 
     #[test]
     #[expected_failure(abort_code = 1, location = Self)]
-    fun test_hatch_monster_state_not_initialized() acquires State {
+    fun test_hatch_dragon_state_not_initialized() acquires State {
         let account = account::create_account_for_test(@0xCAFE);
-        let new_monster_name = string::utf8(b"Baby monster");
-        let new_monster_description = string::utf8(b"This is a newly born baby monster!");
-        let new_monster_uri = string::utf8(b"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQy9fkzKQ1xcpJgK_ZlsDg1mFRUL64Rk1bzmjiZdqdpufyo4z41QRvRteq-M8PzVJXM_Mc&usqp=CAU");
-        hatch_monster(
+        let new_dragon_name = string::utf8(b"Baby dragon");
+        let new_dragon_description = string::utf8(b"This is a newly born baby dragon!");
+        let new_dragon_uri = string::utf8(b"https://static.wikia.nocookie.net/dank_memer/images/c/c7/Dragon.png/revision/latest/thumbnail/width/360/height/360?cb=20221128103212");
+        hatch_dragon(
             &account,
             11,
             15,
-            new_monster_name,
-            new_monster_description,
-            new_monster_uri
+            new_dragon_name,
+            new_dragon_description,
+            new_dragon_uri
         );
     }
 
     #[test]
     #[expected_failure(abort_code = 7, location = Self)]
-    fun test_hatch_monster_signer_not_owner_first_monster() acquires State {
+    fun test_hatch_dragon_signer_not_owner_first_monster() acquires State {
         let aptos_framework = account::create_account_for_test(@aptos_framework);
         timestamp::set_time_has_started_for_testing(&aptos_framework);
 
@@ -1912,13 +1908,13 @@ module overmind::breeder_core {
         let resource_account_address = account::create_resource_address(&@admin, BREEDER_SEED);
 
         let account = account::create_account_for_test(@0xCAFE);
-        let collection_name = string::utf8(b"Monster collection");
-        let collection_description = string::utf8(b"This is a monster collection");
+        let collection_name = string::utf8(b"Dragon collection");
+        let collection_description = string::utf8(b"This is a dragon collection");
         let collection_uri =
-            string::utf8(b"https://upload.wikimedia.org/wikipedia/commons/2/24/Monster_Energy_sold_in_China.jpg");
+            string::utf8(b"https://static.wikia.nocookie.net/dank_memer/images/c/c7/Dragon.png/revision/latest/thumbnail/width/360/height/360?cb=20221128103212");
         let breeding_time = 60 * 60 * 24 * 21 + 60 * 60 * 11;
         let ability_property = string::utf8(b"YEET");
-        create_monster_collection(
+        create_dragon_collection(
             &account,
             collection_name,
             collection_description,
@@ -1928,37 +1924,37 @@ module overmind::breeder_core {
         );
 
         let first_creation_number = account::get_guid_next_creation_num(resource_account_address);
-        let first_monster_name = string::utf8(b"The first monster");
-        let first_monster_description = string::utf8(b"This is the very first monster in this collection");
-        let first_monster_uri = string::utf8(b"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQy9fkzKQ1xcpJgK_ZlsDg1mFRUL64Rk1bzmjiZdqdpufyo4z41QRvRteq-M8PzVJXM_Mc&usqp=CAU");
-        create_monster(&account, collection_name, first_monster_name, first_monster_description, first_monster_uri);
+        let first_dragon_name = string::utf8(b"The first dragon");
+        let first_dragon_description = string::utf8(b"This is the very first dragon in this collection");
+        let first_dragon_uri = string::utf8(b"https://static.wikia.nocookie.net/dank_memer/images/c/c7/Dragon.png/revision/latest/thumbnail/width/360/height/360?cb=20221128103212");
+        create_dragon(&account, collection_name, first_dragon_name, first_dragon_description, first_dragon_uri);
 
         let second_creation_number = account::get_guid_next_creation_num(resource_account_address);
-        let second_monster_name = string::utf8(b"The second monster");
-        let second_monster_description = string::utf8(b"This is another monster in this collection");
-        let second_monster_uri = string::utf8(b"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQy9fkzKQ1xcpJgK_ZlsDg1mFRUL64Rk1bzmjiZdqdpufyo4z41QRvRteq-M8PzVJXM_Mc&usqp=CAU");
-        create_monster(&account, collection_name, second_monster_name, second_monster_description, second_monster_uri);
+        let second_dragon_name = string::utf8(b"The second dragon");
+        let second_dragon_description = string::utf8(b"This is another dragon in this collection");
+        let second_dragon_uri = string::utf8(b"https://static.wikia.nocookie.net/dank_memer/images/c/c7/Dragon.png/revision/latest/thumbnail/width/360/height/360?cb=20221128103212");
+        create_dragon(&account, collection_name, second_dragon_name, second_dragon_description, second_dragon_uri);
 
-        let first_monster_address =
+        let first_dragon_address =
             object::create_guid_object_address(resource_account_address, first_creation_number);
-        object::transfer_raw(&account, first_monster_address, @0xABC);
+        object::transfer_raw(&account, first_dragon_address, @0xABC);
 
-        let new_monster_name = string::utf8(b"Baby monster");
-        let new_monster_description = string::utf8(b"This is a newly born baby monster!");
-        let new_monster_uri = string::utf8(b"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQy9fkzKQ1xcpJgK_ZlsDg1mFRUL64Rk1bzmjiZdqdpufyo4z41QRvRteq-M8PzVJXM_Mc&usqp=CAU");
-        hatch_monster(
+        let new_dragon_name = string::utf8(b"Baby dragon");
+        let new_dragon_description = string::utf8(b"This is a newly born baby dragon!");
+        let new_dragon_uri = string::utf8(b"https://static.wikia.nocookie.net/dank_memer/images/c/c7/Dragon.png/revision/latest/thumbnail/width/360/height/360?cb=20221128103212");
+        hatch_dragon(
             &account,
             first_creation_number,
             second_creation_number,
-            new_monster_name,
-            new_monster_description,
-            new_monster_uri
+            new_dragon_name,
+            new_dragon_description,
+            new_dragon_uri
         );
     }
 
     #[test]
     #[expected_failure(abort_code = 7, location = Self)]
-    fun test_hatch_monster_signer_not_owner_second_monster() acquires State {
+    fun test_hatch_dragon_signer_not_owner_second_monster() acquires State {
         let aptos_framework = account::create_account_for_test(@aptos_framework);
         timestamp::set_time_has_started_for_testing(&aptos_framework);
 
@@ -1968,13 +1964,13 @@ module overmind::breeder_core {
         let resource_account_address = account::create_resource_address(&@admin, BREEDER_SEED);
 
         let account = account::create_account_for_test(@0xCAFE);
-        let collection_name = string::utf8(b"Monster collection");
-        let collection_description = string::utf8(b"This is a monster collection");
+        let collection_name = string::utf8(b"Dragon collection");
+        let collection_description = string::utf8(b"This is a dragon collection");
         let collection_uri =
-            string::utf8(b"https://upload.wikimedia.org/wikipedia/commons/2/24/Monster_Energy_sold_in_China.jpg");
+            string::utf8(b"https://static.wikia.nocookie.net/dank_memer/images/c/c7/Dragon.png/revision/latest/thumbnail/width/360/height/360?cb=20221128103212");
         let breeding_time = 60 * 60 * 24 * 21 + 60 * 60 * 11;
         let ability_property = string::utf8(b"YEET");
-        create_monster_collection(
+        create_dragon_collection(
             &account,
             collection_name,
             collection_description,
@@ -1984,37 +1980,37 @@ module overmind::breeder_core {
         );
 
         let first_creation_number = account::get_guid_next_creation_num(resource_account_address);
-        let first_monster_name = string::utf8(b"The first monster");
-        let first_monster_description = string::utf8(b"This is the very first monster in this collection");
-        let first_monster_uri = string::utf8(b"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQy9fkzKQ1xcpJgK_ZlsDg1mFRUL64Rk1bzmjiZdqdpufyo4z41QRvRteq-M8PzVJXM_Mc&usqp=CAU");
-        create_monster(&account, collection_name, first_monster_name, first_monster_description, first_monster_uri);
+        let first_dragon_name = string::utf8(b"The first dragon");
+        let first_dragon_description = string::utf8(b"This is the very first dragon in this collection");
+        let first_dragon_uri = string::utf8(b"https://static.wikia.nocookie.net/dank_memer/images/c/c7/Dragon.png/revision/latest/thumbnail/width/360/height/360?cb=20221128103212");
+        create_dragon(&account, collection_name, first_dragon_name, first_dragon_description, first_dragon_uri);
 
         let second_creation_number = account::get_guid_next_creation_num(resource_account_address);
-        let second_monster_name = string::utf8(b"The second monster");
-        let second_monster_description = string::utf8(b"This is another monster in this collection");
-        let second_monster_uri = string::utf8(b"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQy9fkzKQ1xcpJgK_ZlsDg1mFRUL64Rk1bzmjiZdqdpufyo4z41QRvRteq-M8PzVJXM_Mc&usqp=CAU");
-        create_monster(&account, collection_name, second_monster_name, second_monster_description, second_monster_uri);
+        let second_dragon_name = string::utf8(b"The second dragon");
+        let second_dragon_description = string::utf8(b"This is another dragon in this collection");
+        let second_dragon_uri = string::utf8(b"https://static.wikia.nocookie.net/dank_memer/images/c/c7/Dragon.png/revision/latest/thumbnail/width/360/height/360?cb=20221128103212");
+        create_dragon(&account, collection_name, second_dragon_name, second_dragon_description, second_dragon_uri);
 
-        let second_monster_address =
+        let second_dragon_address =
             object::create_guid_object_address(resource_account_address, second_creation_number);
-        object::transfer_raw(&account, second_monster_address, @0xABC);
+        object::transfer_raw(&account, second_dragon_address, @0xABC);
 
-        let new_monster_name = string::utf8(b"Baby monster");
-        let new_monster_description = string::utf8(b"This is a newly born baby monster!");
-        let new_monster_uri = string::utf8(b"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQy9fkzKQ1xcpJgK_ZlsDg1mFRUL64Rk1bzmjiZdqdpufyo4z41QRvRteq-M8PzVJXM_Mc&usqp=CAU");
-        hatch_monster(
+        let new_dragon_name = string::utf8(b"Baby dragon");
+        let new_dragon_description = string::utf8(b"This is a newly born baby dragon!");
+        let new_dragon_uri = string::utf8(b"https://static.wikia.nocookie.net/dank_memer/images/c/c7/Dragon.png/revision/latest/thumbnail/width/360/height/360?cb=20221128103212");
+        hatch_dragon(
             &account,
             first_creation_number,
             second_creation_number,
-            new_monster_name,
-            new_monster_description,
-            new_monster_uri
+            new_dragon_name,
+            new_dragon_description,
+            new_dragon_uri
         );
     }
 
     #[test]
     #[expected_failure(abort_code = 9, location = Self)]
-    fun test_hatch_monsters_not_breeding() acquires State {
+    fun test_hatch_dragons_not_breeding() acquires State {
         let aptos_framework = account::create_account_for_test(@aptos_framework);
         timestamp::set_time_has_started_for_testing(&aptos_framework);
         features::change_feature_flags(
@@ -2029,13 +2025,13 @@ module overmind::breeder_core {
         let resource_account_address = account::create_resource_address(&@admin, BREEDER_SEED);
 
         let account = account::create_account_for_test(@0xCAFE);
-        let collection_name = string::utf8(b"Monster collection");
-        let collection_description = string::utf8(b"This is a monster collection");
+        let collection_name = string::utf8(b"Dragon collection");
+        let collection_description = string::utf8(b"This is a dragon collection");
         let collection_uri =
-            string::utf8(b"https://upload.wikimedia.org/wikipedia/commons/2/24/Monster_Energy_sold_in_China.jpg");
+            string::utf8(b"https://static.wikia.nocookie.net/dank_memer/images/c/c7/Dragon.png/revision/latest/thumbnail/width/360/height/360?cb=20221128103212");
         let breeding_time = 60 * 60 * 24 * 21 + 60 * 60 * 11;
         let ability_property = string::utf8(b"YEET");
-        create_monster_collection(
+        create_dragon_collection(
             &account,
             collection_name,
             collection_description,
@@ -2045,33 +2041,33 @@ module overmind::breeder_core {
         );
 
         let first_creation_number = account::get_guid_next_creation_num(resource_account_address);
-        let first_monster_name = string::utf8(b"The first monster");
-        let first_monster_description = string::utf8(b"This is the very first monster in this collection");
-        let first_monster_uri = string::utf8(b"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQy9fkzKQ1xcpJgK_ZlsDg1mFRUL64Rk1bzmjiZdqdpufyo4z41QRvRteq-M8PzVJXM_Mc&usqp=CAU");
-        create_monster(&account, collection_name, first_monster_name, first_monster_description, first_monster_uri);
+        let first_dragon_name = string::utf8(b"The first dragon");
+        let first_dragon_description = string::utf8(b"This is the very first dragon in this collection");
+        let first_dragon_uri = string::utf8(b"https://static.wikia.nocookie.net/dank_memer/images/c/c7/Dragon.png/revision/latest/thumbnail/width/360/height/360?cb=20221128103212");
+        create_dragon(&account, collection_name, first_dragon_name, first_dragon_description, first_dragon_uri);
 
         let second_creation_number = account::get_guid_next_creation_num(resource_account_address);
-        let second_monster_name = string::utf8(b"The second monster");
-        let second_monster_description = string::utf8(b"This is another monster in this collection");
-        let second_monster_uri = string::utf8(b"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQy9fkzKQ1xcpJgK_ZlsDg1mFRUL64Rk1bzmjiZdqdpufyo4z41QRvRteq-M8PzVJXM_Mc&usqp=CAU");
-        create_monster(&account, collection_name, second_monster_name, second_monster_description, second_monster_uri);
+        let second_dragon_name = string::utf8(b"The second dragon");
+        let second_dragon_description = string::utf8(b"This is another dragon in this collection");
+        let second_dragon_uri = string::utf8(b"https://static.wikia.nocookie.net/dank_memer/images/c/c7/Dragon.png/revision/latest/thumbnail/width/360/height/360?cb=20221128103212");
+        create_dragon(&account, collection_name, second_dragon_name, second_dragon_description, second_dragon_uri);
 
-        let new_monster_name = string::utf8(b"Baby monster");
-        let new_monster_description = string::utf8(b"This is a newly born baby monster!");
-        let new_monster_uri = string::utf8(b"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQy9fkzKQ1xcpJgK_ZlsDg1mFRUL64Rk1bzmjiZdqdpufyo4z41QRvRteq-M8PzVJXM_Mc&usqp=CAU");
-        hatch_monster(
+        let new_dragon_name = string::utf8(b"Baby dragon");
+        let new_dragon_description = string::utf8(b"This is a newly born baby dragon!");
+        let new_dragon_uri = string::utf8(b"https://static.wikia.nocookie.net/dank_memer/images/c/c7/Dragon.png/revision/latest/thumbnail/width/360/height/360?cb=20221128103212");
+        hatch_dragon(
             &account,
             first_creation_number,
             second_creation_number,
-            new_monster_name,
-            new_monster_description,
-            new_monster_uri
+            new_dragon_name,
+            new_dragon_description,
+            new_dragon_uri
         );
     }
 
     #[test]
     #[expected_failure(abort_code = 10, location = Self)]
-    fun test_hatch_monster_breeding_not_finished() acquires State {
+    fun test_hatch_dragon_breeding_not_finished() acquires State {
         let aptos_framework = account::create_account_for_test(@aptos_framework);
         timestamp::set_time_has_started_for_testing(&aptos_framework);
         features::change_feature_flags(
@@ -2086,13 +2082,13 @@ module overmind::breeder_core {
         let resource_account_address = account::create_resource_address(&@admin, BREEDER_SEED);
 
         let account = account::create_account_for_test(@0xCAFE);
-        let collection_name = string::utf8(b"Monster collection");
-        let collection_description = string::utf8(b"This is a monster collection");
+        let collection_name = string::utf8(b"Dragon collection");
+        let collection_description = string::utf8(b"This is a dragon collection");
         let collection_uri =
-            string::utf8(b"https://upload.wikimedia.org/wikipedia/commons/2/24/Monster_Energy_sold_in_China.jpg");
+            string::utf8(b"https://static.wikia.nocookie.net/dank_memer/images/c/c7/Dragon.png/revision/latest/thumbnail/width/360/height/360?cb=20221128103212");
         let breeding_time = 60 * 60 * 24 * 21 + 60 * 60 * 11;
         let ability_property = string::utf8(b"YEET");
-        create_monster_collection(
+        create_dragon_collection(
             &account,
             collection_name,
             collection_description,
@@ -2102,34 +2098,34 @@ module overmind::breeder_core {
         );
 
         let first_creation_number = account::get_guid_next_creation_num(resource_account_address);
-        let first_monster_name = string::utf8(b"The first monster");
-        let first_monster_description = string::utf8(b"This is the very first monster in this collection");
-        let first_monster_uri = string::utf8(b"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQy9fkzKQ1xcpJgK_ZlsDg1mFRUL64Rk1bzmjiZdqdpufyo4z41QRvRteq-M8PzVJXM_Mc&usqp=CAU");
-        create_monster(&account, collection_name, first_monster_name, first_monster_description, first_monster_uri);
+        let first_dragon_name = string::utf8(b"The first dragon");
+        let first_dragon_description = string::utf8(b"This is the very first dragon in this collection");
+        let first_dragon_uri = string::utf8(b"https://static.wikia.nocookie.net/dank_memer/images/c/c7/Dragon.png/revision/latest/thumbnail/width/360/height/360?cb=20221128103212");
+        create_dragon(&account, collection_name, first_dragon_name, first_dragon_description, first_dragon_uri);
 
         let second_creation_number = account::get_guid_next_creation_num(resource_account_address);
-        let second_monster_name = string::utf8(b"The second monster");
-        let second_monster_description = string::utf8(b"This is another monster in this collection");
-        let second_monster_uri = string::utf8(b"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQy9fkzKQ1xcpJgK_ZlsDg1mFRUL64Rk1bzmjiZdqdpufyo4z41QRvRteq-M8PzVJXM_Mc&usqp=CAU");
-        create_monster(&account, collection_name, second_monster_name, second_monster_description, second_monster_uri);
+        let second_dragon_name = string::utf8(b"The second dragon");
+        let second_dragon_description = string::utf8(b"This is another dragon in this collection");
+        let second_dragon_uri = string::utf8(b"https://static.wikia.nocookie.net/dank_memer/images/c/c7/Dragon.png/revision/latest/thumbnail/width/360/height/360?cb=20221128103212");
+        create_dragon(&account, collection_name, second_dragon_name, second_dragon_description, second_dragon_uri);
 
-        breed_monsters(&account, collection_name, first_creation_number, second_creation_number);
+        breed_dragons(&account, collection_name, first_creation_number, second_creation_number);
 
-        let new_monster_name = string::utf8(b"Baby monster");
-        let new_monster_description = string::utf8(b"This is a newly born baby monster!");
-        let new_monster_uri = string::utf8(b"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQy9fkzKQ1xcpJgK_ZlsDg1mFRUL64Rk1bzmjiZdqdpufyo4z41QRvRteq-M8PzVJXM_Mc&usqp=CAU");
-        hatch_monster(
+        let new_dragon_name = string::utf8(b"Baby dragon");
+        let new_dragon_description = string::utf8(b"This is a newly born baby dragon!");
+        let new_dragon_uri = string::utf8(b"https://static.wikia.nocookie.net/dank_memer/images/c/c7/Dragon.png/revision/latest/thumbnail/width/360/height/360?cb=20221128103212");
+        hatch_dragon(
             &account,
             first_creation_number,
             second_creation_number,
-            new_monster_name,
-            new_monster_description,
-            new_monster_uri
+            new_dragon_name,
+            new_dragon_description,
+            new_dragon_uri
         );
     }
 
     #[test]
-    fun test_combine_equipment() acquires State {
+    fun test_combine_swords() acquires State {
         let aptos_framework = account::create_account_for_test(@aptos_framework);
         timestamp::set_time_has_started_for_testing(&aptos_framework);
 
@@ -2137,14 +2133,14 @@ module overmind::breeder_core {
         init(&admin);
 
         let account = account::create_account_for_test(@0xCAFE);
-        let collection_name = string::utf8(b"Equipment collection");
-        let collection_description = string::utf8(b"This is a equipment collection");
+        let collection_name = string::utf8(b"Sword collection");
+        let collection_description = string::utf8(b"This is a sword collection");
         let collection_uri =
-            string::utf8(b"https://i.pinimg.com/originals/07/6b/b1/076bb1fbef7d70f0a1a961ab8c136a22.jpg");
+            string::utf8(b"https://static.wikia.nocookie.net/dank_memer/images/c/c7/Dragon.png/revision/latest/thumbnail/width/360/height/360?cb=20221128103212");
         let combine_amount = 4;
-        let property_values = vector[10, 0, 5];
+        let property_values = vector[10, 5];
         let ability_property = string::utf8(b"Fire imbued");
-        create_equipment_collection(
+        create_sword_collection(
             &account,
             collection_name,
             collection_description,
@@ -2157,24 +2153,24 @@ module overmind::breeder_core {
         let resource_account_address = account::create_resource_address(&@admin, BREEDER_SEED);
         let creation_number_brefore_first_creation = account::get_guid_next_creation_num(resource_account_address);
 
-        let equipment_name = string::utf8(b"Eggscalibur");
-        let equipment_description = string::utf8(b"For a true chef");
-        let equipment_uri = string::utf8(b"https://cdnb.artstation.com/p/assets/covers/images/032/429/081/large/james-jones-james-jones-th3.jpg?1684926233");
-        create_equipment(&account, collection_name, equipment_name, equipment_description, equipment_uri, 2);
+        let sword_name = string::utf8(b"Eggscalibur");
+        let sword_description = string::utf8(b"For a true chef");
+        let sword_uri = string::utf8(b"https://cdnb.artstation.com/p/assets/covers/images/032/429/081/large/james-jones-james-jones-th3.jpg?1684926233");
+        create_sword(&account, collection_name, sword_name, sword_description, sword_uri, 2);
 
         let creation_number_brefore_second_creation =
             account::get_guid_next_creation_num(resource_account_address);
-        let equipment_name = string::utf8(b"The Great Spork");
-        let equipment_description = string::utf8(b"For a true taster");
-        let equipment_uri =
+        let sword_name = string::utf8(b"The Great Spork");
+        let sword_description = string::utf8(b"For a true taster");
+        let sword_uri =
             string::utf8(b"https://www.watchuseek.com/attachments/spork-notes-1-jpg.532357/");
-        create_equipment(&account, collection_name, equipment_name, equipment_description, equipment_uri, 2);
+        create_sword(&account, collection_name, sword_name, sword_description, sword_uri, 2);
 
-        let new_equipment_creation_number = account::get_guid_next_creation_num(resource_account_address);
-        let new_equipment_name = string::utf8(b"Ultimate Cutlery");
-        let new_equipment_description = string::utf8(b"For a true Gourmet");
-        let new_equipment_uri = string::utf8(b"https://m.media-amazon.com/images/I/61QyLGqUVQL._AC_UF350,350_QL80_.jpg");
-        combine_equipment(
+        let new_sword_creation_number = account::get_guid_next_creation_num(resource_account_address);
+        let new_sword_name = string::utf8(b"Ultimate Cutlery");
+        let new_sword_description = string::utf8(b"For a true Gourmet");
+        let new_sword_uri = string::utf8(b"https://m.media-amazon.com/images/I/61QyLGqUVQL._AC_UF350,350_QL80_.jpg");
+        combine_swords(
             &account,
             collection_name,
             vector[
@@ -2183,49 +2179,49 @@ module overmind::breeder_core {
                 creation_number_brefore_second_creation,
                 creation_number_brefore_second_creation + 1
             ],
-            new_equipment_name,
-            new_equipment_description,
-            new_equipment_uri
+            new_sword_name,
+            new_sword_description,
+            new_sword_uri
         );
 
         let state = borrow_global<State>(@admin);
         assert!(simple_map::length(&state.breeder.collections) == 0, 0);
         assert!(simple_map::length(&state.breeder.ongoing_breedings) == 0, 1);
-        assert!(event::counter(&state.breeder.create_monster_collection_events) == 0, 2);
-        assert!(event::counter(&state.breeder.create_monster_events) == 0, 3);
-        assert!(event::counter(&state.breeder.breed_monster_events) == 0, 4);
-        assert!(event::counter(&state.breeder.hatch_monster_events) == 0, 5);
+        assert!(event::counter(&state.breeder.create_dragon_collection_events) == 0, 2);
+        assert!(event::counter(&state.breeder.create_dragon_events) == 0, 3);
+        assert!(event::counter(&state.breeder.breed_dragons_events) == 0, 4);
+        assert!(event::counter(&state.breeder.hatch_dragon_events) == 0, 5);
         assert!(simple_map::length(&state.combiner.collections) == 1, 6);
         assert!(simple_map::contains_key(&state.combiner.collections, &collection_name), 7);
-        assert!(event::counter(&state.combiner.create_equipment_collection_events) == 1, 8);
-        assert!(event::counter(&state.combiner.create_equipment_events) == 2, 9);
-        assert!(event::counter(&state.combiner.combine_equipment_events) == 1, 10);
+        assert!(event::counter(&state.combiner.create_sword_collection_events) == 1, 8);
+        assert!(event::counter(&state.combiner.create_sword_events) == 2, 9);
+        assert!(event::counter(&state.combiner.combine_swords_events) == 1, 10);
 
-        let equipment = simple_map::borrow(&state.combiner.collections, &collection_name);
-        assert!(equipment.combine_amount == combine_amount, 11);
+        let sword_type = simple_map::borrow(&state.combiner.collections, &collection_name);
+        assert!(sword_type.combine_amount == combine_amount, 11);
 
         let expected_starting_properties = vector::map_ref(&property_values, |value| {
             bcs::to_bytes(value)
         });
         vector::push_back(&mut expected_starting_properties, bcs::to_bytes(&ability_property));
-        assert!(equipment.starting_properties == expected_starting_properties, 12);
+        assert!(sword_type.starting_properties == expected_starting_properties, 12);
 
-        let new_equipment_address =
-            object::create_guid_object_address(resource_account_address, new_equipment_creation_number);
-        let new_equipment_token = object::address_to_object<Token>(new_equipment_address);
-        assert!(!aptos_token::are_properties_mutable(new_equipment_token), 13);
-        assert!(aptos_token::is_burnable(new_equipment_token), 14);
-        assert!(!aptos_token::is_freezable_by_creator(new_equipment_token), 15);
-        assert!(!aptos_token::is_mutable_description(new_equipment_token), 16);
-        assert!(!aptos_token::is_mutable_name(new_equipment_token), 17);
-        assert!(!aptos_token::is_mutable_uri(new_equipment_token), 18);
-        assert!(token::creator(new_equipment_token) == resource_account_address, 19);
-        assert!(token::collection_name(new_equipment_token) == collection_name, 20);
-        assert!(token::description(new_equipment_token) == new_equipment_description, 21);
-        assert!(token::name(new_equipment_token) == new_equipment_name, 22);
-        assert!(token::uri(new_equipment_token) == new_equipment_uri, 23);
+        let new_sword_address =
+            object::create_guid_object_address(resource_account_address, new_sword_creation_number);
+        let new_sword_token = object::address_to_object<Token>(new_sword_address);
+        assert!(!aptos_token::are_properties_mutable(new_sword_token), 13);
+        assert!(aptos_token::is_burnable(new_sword_token), 14);
+        assert!(!aptos_token::is_freezable_by_creator(new_sword_token), 15);
+        assert!(!aptos_token::is_mutable_description(new_sword_token), 16);
+        assert!(!aptos_token::is_mutable_name(new_sword_token), 17);
+        assert!(!aptos_token::is_mutable_uri(new_sword_token), 18);
+        assert!(token::creator(new_sword_token) == resource_account_address, 19);
+        assert!(token::collection_name(new_sword_token) == collection_name, 20);
+        assert!(token::description(new_sword_token) == new_sword_description, 21);
+        assert!(token::name(new_sword_token) == new_sword_name, 22);
+        assert!(token::uri(new_sword_token) == new_sword_uri, 23);
 
-        let maybe_token_royalty = token::royalty(new_equipment_token);
+        let maybe_token_royalty = token::royalty(new_sword_token);
         assert!(option::is_some(&maybe_token_royalty), 24);
 
         let token_royalty = option::extract(&mut maybe_token_royalty);
@@ -2233,9 +2229,8 @@ module overmind::breeder_core {
         assert!(royalty::numerator(&token_royalty) == 1, 26);
         assert!(royalty::payee_address(&token_royalty) == resource_account_address, 27);
 
-        let property_map = object::address_to_object<PropertyMap>(new_equipment_address);
+        let property_map = object::address_to_object<PropertyMap>(new_sword_address);
         assert!(property_map::read_u64(&property_map, &string::utf8(b"Attack")) == 40, 28);
-        assert!(property_map::read_u64(&property_map, &string::utf8(b"Defence")) == 0, 29);
         assert!(property_map::read_u64(&property_map, &string::utf8(b"Durability")) == 20, 30);
         assert!(
             property_map::read_string(&property_map, &string::utf8(b"Ability")) ==
@@ -2246,25 +2241,25 @@ module overmind::breeder_core {
 
     #[test]
     #[expected_failure(abort_code = 1, location = Self)]
-    fun test_combine_equipment_state_not_initialized() acquires State {
+    fun test_combine_swords_state_not_initialized() acquires State {
         let account = account::create_account_for_test(@0xCAFE);
-        let collection_name = string::utf8(b"Equipment collection");
-        let new_equipment_name = string::utf8(b"Ultimate Cutlery");
-        let new_equipment_description = string::utf8(b"For a true Gourmet");
-        let new_equipment_uri = string::utf8(b"https://m.media-amazon.com/images/I/61QyLGqUVQL._AC_UF350,350_QL80_.jpg");
-        combine_equipment(
+        let collection_name = string::utf8(b"Sword collection");
+        let new_sword_name = string::utf8(b"Ultimate Cutlery");
+        let new_sword_description = string::utf8(b"For a true Gourmet");
+        let new_sword_uri = string::utf8(b"https://m.media-amazon.com/images/I/61QyLGqUVQL._AC_UF350,350_QL80_.jpg");
+        combine_swords(
             &account,
             collection_name,
             vector[15, 16, 55, 66],
-            new_equipment_name,
-            new_equipment_description,
-            new_equipment_uri
+            new_sword_name,
+            new_sword_description,
+            new_sword_uri
         );
     }
 
     #[test]
     #[expected_failure(abort_code = 11, location = Self)]
-    fun test_combine_equipment_incorrect_amount_of_equipment() acquires State {
+    fun test_combine_swords_incorrect_amount_of_equipment() acquires State {
         let aptos_framework = account::create_account_for_test(@aptos_framework);
         timestamp::set_time_has_started_for_testing(&aptos_framework);
 
@@ -2272,14 +2267,14 @@ module overmind::breeder_core {
         init(&admin);
 
         let account = account::create_account_for_test(@0xCAFE);
-        let collection_name = string::utf8(b"Equipment collection");
-        let collection_description = string::utf8(b"This is a equipment collection");
+        let collection_name = string::utf8(b"Sword collection");
+        let collection_description = string::utf8(b"This is a sword collection");
         let collection_uri =
-            string::utf8(b"https://i.pinimg.com/originals/07/6b/b1/076bb1fbef7d70f0a1a961ab8c136a22.jpg");
+            string::utf8(b"https://static.wikia.nocookie.net/dank_memer/images/c/c7/Dragon.png/revision/latest/thumbnail/width/360/height/360?cb=20221128103212");
         let combine_amount = 4;
-        let property_values = vector[10, 0, 5];
+        let property_values = vector[10, 5];
         let ability_property = string::utf8(b"Fire imbued");
-        create_equipment_collection(
+        create_sword_collection(
             &account,
             collection_name,
             collection_description,
@@ -2289,22 +2284,22 @@ module overmind::breeder_core {
             ability_property
         );
 
-        let new_equipment_name = string::utf8(b"Ultimate Cutlery");
-        let new_equipment_description = string::utf8(b"For a true Gourmet");
-        let new_equipment_uri = string::utf8(b"https://m.media-amazon.com/images/I/61QyLGqUVQL._AC_UF350,350_QL80_.jpg");
-        combine_equipment(
+        let new_sword_name = string::utf8(b"Ultimate Cutlery");
+        let new_sword_description = string::utf8(b"For a true Gourmet");
+        let new_sword_uri = string::utf8(b"https://m.media-amazon.com/images/I/61QyLGqUVQL._AC_UF350,350_QL80_.jpg");
+        combine_swords(
             &account,
             collection_name,
             vector[15],
-            new_equipment_name,
-            new_equipment_description,
-            new_equipment_uri
+            new_sword_name,
+            new_sword_description,
+            new_sword_uri
         );
     }
 
     #[test]
     #[expected_failure(abort_code = 7, location = Self)]
-    fun test_combine_equipment_signer_does_not_own_token() acquires State {
+    fun test_combine_swords_signer_does_not_own_token() acquires State {
         let aptos_framework = account::create_account_for_test(@aptos_framework);
         timestamp::set_time_has_started_for_testing(&aptos_framework);
 
@@ -2312,14 +2307,14 @@ module overmind::breeder_core {
         init(&admin);
 
         let account = account::create_account_for_test(@0xCAFE);
-        let collection_name = string::utf8(b"Equipment collection");
-        let collection_description = string::utf8(b"This is a equipment collection");
+        let collection_name = string::utf8(b"Sword collection");
+        let collection_description = string::utf8(b"This is a sword collection");
         let collection_uri =
-            string::utf8(b"https://i.pinimg.com/originals/07/6b/b1/076bb1fbef7d70f0a1a961ab8c136a22.jpg");
+            string::utf8(b"https://static.wikia.nocookie.net/dank_memer/images/c/c7/Dragon.png/revision/latest/thumbnail/width/360/height/360?cb=20221128103212");
         let combine_amount = 4;
-        let property_values = vector[10, 0, 5];
+        let property_values = vector[10, 5];
         let ability_property = string::utf8(b"Fire imbued");
-        create_equipment_collection(
+        create_sword_collection(
             &account,
             collection_name,
             collection_description,
@@ -2332,19 +2327,19 @@ module overmind::breeder_core {
         let resource_account_address = account::create_resource_address(&@admin, BREEDER_SEED);
 
         let creation_number = account::get_guid_next_creation_num(resource_account_address);
-        let equipment_name = string::utf8(b"Eggscalibur");
-        let equipment_description = string::utf8(b"For a true chef");
-        let equipment_uri = string::utf8(b"https://cdnb.artstation.com/p/assets/covers/images/032/429/081/large/james-jones-james-jones-th3.jpg?1684926233");
-        create_equipment(&account, collection_name, equipment_name, equipment_description, equipment_uri, 4);
+        let sword_name = string::utf8(b"Eggscalibur");
+        let sword_description = string::utf8(b"For a true chef");
+        let sword_uri = string::utf8(b"https://cdnb.artstation.com/p/assets/covers/images/032/429/081/large/james-jones-james-jones-th3.jpg?1684926233");
+        create_sword(&account, collection_name, sword_name, sword_description, sword_uri, 4);
 
         let equipment_address =
             object::create_guid_object_address(resource_account_address, creation_number + 1);
         object::transfer_raw(&account, equipment_address, @0xABCDEF);
 
-        let new_equipment_name = string::utf8(b"Ultimate Cutlery");
-        let new_equipment_description = string::utf8(b"For a true Gourmet");
-        let new_equipment_uri = string::utf8(b"https://m.media-amazon.com/images/I/61QyLGqUVQL._AC_UF350,350_QL80_.jpg");
-        combine_equipment(
+        let new_sword_name = string::utf8(b"Ultimate Cutlery");
+        let new_sword_description = string::utf8(b"For a true Gourmet");
+        let new_sword_uri = string::utf8(b"https://m.media-amazon.com/images/I/61QyLGqUVQL._AC_UF350,350_QL80_.jpg");
+        combine_swords(
             &account,
             collection_name,
             vector[
@@ -2353,15 +2348,15 @@ module overmind::breeder_core {
                 creation_number + 2,
                 creation_number + 3
             ],
-            new_equipment_name,
-            new_equipment_description,
-            new_equipment_uri
+            new_sword_name,
+            new_sword_description,
+            new_sword_uri
         );
     }
 
     #[test]
     #[expected_failure(abort_code = 13, location = Self)]
-    fun test_combine_equipment_token_from_incorrect_collection() acquires State {
+    fun test_combine_swords_token_from_incorrect_collection() acquires State {
         let aptos_framework = account::create_account_for_test(@aptos_framework);
         timestamp::set_time_has_started_for_testing(&aptos_framework);
 
@@ -2369,14 +2364,14 @@ module overmind::breeder_core {
         init(&admin);
 
         let account = account::create_account_for_test(@0xCAFE);
-        let collection_name = string::utf8(b"Equipment collection");
-        let collection_description = string::utf8(b"This is a equipment collection");
+        let collection_name = string::utf8(b"Sword collection");
+        let collection_description = string::utf8(b"This is a sword collection");
         let collection_uri =
-            string::utf8(b"https://i.pinimg.com/originals/07/6b/b1/076bb1fbef7d70f0a1a961ab8c136a22.jpg");
+            string::utf8(b"https://static.wikia.nocookie.net/dank_memer/images/c/c7/Dragon.png/revision/latest/thumbnail/width/360/height/360?cb=20221128103212");
         let combine_amount = 4;
-        let property_values = vector[10, 0, 5];
+        let property_values = vector[10, 5];
         let ability_property = string::utf8(b"Fire imbued");
-        create_equipment_collection(
+        create_sword_collection(
             &account,
             collection_name,
             collection_description,
@@ -2386,14 +2381,14 @@ module overmind::breeder_core {
             ability_property
         );
 
-        let another_collection_name = string::utf8(b"Equipment collection 2");
-        let another_collection_description = string::utf8(b"This is another equipment collection");
+        let another_collection_name = string::utf8(b"Sword collection 2");
+        let another_collection_description = string::utf8(b"This is another sword collection");
         let another_collection_uri =
             string::utf8(b"https://i.pinimg.com/originals/07/6b/b1/076bb1fbef7d70f0a1a961ab8c136a22.jpg");
         let another_combine_amount = 4;
-        let another_property_values = vector[10, 0, 5];
+        let another_property_values = vector[10, 5];
         let another_ability_property = string::utf8(b"Ice imbued");
-        create_equipment_collection(
+        create_sword_collection(
             &account,
             another_collection_name,
             another_collection_description,
@@ -2406,20 +2401,20 @@ module overmind::breeder_core {
         let resource_account_address = account::create_resource_address(&@admin, BREEDER_SEED);
 
         let creation_number = account::get_guid_next_creation_num(resource_account_address);
-        let equipment_name = string::utf8(b"Eggscalibur");
-        let equipment_description = string::utf8(b"For a true chef");
-        let equipment_uri = string::utf8(b"https://cdnb.artstation.com/p/assets/covers/images/032/429/081/large/james-jones-james-jones-th3.jpg?1684926233");
-        create_equipment(&account, collection_name, equipment_name, equipment_description, equipment_uri, 3);
+        let sword_name = string::utf8(b"Eggscalibur");
+        let sword_description = string::utf8(b"For a true chef");
+        let sword_uri = string::utf8(b"https://cdnb.artstation.com/p/assets/covers/images/032/429/081/large/james-jones-james-jones-th3.jpg?1684926233");
+        create_sword(&account, collection_name, sword_name, sword_description, sword_uri, 3);
 
-        let equipment_name = string::utf8(b"Eggscalibur");
-        let equipment_description = string::utf8(b"For a true chef");
-        let equipment_uri = string::utf8(b"https://cdnb.artstation.com/p/assets/covers/images/032/429/081/large/james-jones-james-jones-th3.jpg?1684926233");
-        create_equipment(&account, another_collection_name, equipment_name, equipment_description, equipment_uri, 1);
+        let sword_name = string::utf8(b"Eggscalibur");
+        let sword_description = string::utf8(b"For a true chef");
+        let sword_uri = string::utf8(b"https://cdnb.artstation.com/p/assets/covers/images/032/429/081/large/james-jones-james-jones-th3.jpg?1684926233");
+        create_sword(&account, another_collection_name, sword_name, sword_description, sword_uri, 1);
 
-        let new_equipment_name = string::utf8(b"Ultimate Cutlery");
-        let new_equipment_description = string::utf8(b"For a true Gourmet");
-        let new_equipment_uri = string::utf8(b"https://m.media-amazon.com/images/I/61QyLGqUVQL._AC_UF350,350_QL80_.jpg");
-        combine_equipment(
+        let new_sword_name = string::utf8(b"Ultimate Cutlery");
+        let new_sword_description = string::utf8(b"For a true Gourmet");
+        let new_sword_uri = string::utf8(b"https://m.media-amazon.com/images/I/61QyLGqUVQL._AC_UF350,350_QL80_.jpg");
+        combine_swords(
             &account,
             collection_name,
             vector[
@@ -2428,9 +2423,9 @@ module overmind::breeder_core {
                 creation_number + 2,
                 creation_number + 1
             ],
-            new_equipment_name,
-            new_equipment_description,
-            new_equipment_uri
+            new_sword_name,
+            new_sword_description,
+            new_sword_uri
         );
     }
 }

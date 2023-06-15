@@ -1,5 +1,5 @@
 [package]
-name = 'longswords-and-dragons'
+name = 'breeder'
 version = '1.0.0'
 [dependencies.AptosTokenObjects]
 git = 'https://github.com/aptos-labs/aptos-core.git'
